@@ -460,24 +460,20 @@ body {
             <input type="number" id="spouse-birth" placeholder="مثال: 1987" min="1940" max="2005">
           </div>
           <div class="field">
+            <label><span class="req">*</span> سنة الزواج</label>
+            <input type="number" id="marriage-year" placeholder="مثال: 2018" min="1970" max="2025" oninput="onMarriageYearChange()">
+            <span class="hint">مهم لتحديد السنوات التي يمكن فحصها للزوج/الزوجة</span>
+          </div>
+          <div class="field">
             <label>هل الزوج/الزوجة يعمل/تعمل؟</label>
             <div class="yn-group">
-              <button class="yn-btn yes" onclick="selectYN(this,'spouse-works','نعم');toggleConditional('spouse-file-field','نعم')">✅ نعم</button>
-              <button class="yn-btn no" onclick="selectYN(this,'spouse-works','لا');toggleConditional('spouse-file-field','لا')">❌ لا</button>
+              <button class="yn-btn yes" onclick="selectYN(this,'spouse-works','نعم');onSpouseWorksChange('نعم')">✅ نعم</button>
+              <button class="yn-btn no" onclick="selectYN(this,'spouse-works','لا');onSpouseWorksChange('لا')">❌ لا</button>
             </div>
             <input type="hidden" id="spouse-works">
           </div>
-          <div class="conditional" id="spouse-file-field">
-            <div class="field">
-              <label>ارفع ملف 106 للزوج/الزوجة</label>
-              <div class="file-area" onclick="document.getElementById('file-spouse').click()">
-                <input type="file" id="file-spouse" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,'files-spouse')">
-                <div class="file-area-icon">📎</div>
-                <div class="file-area-text">اضغط لرفع الملف</div>
-                <div class="file-area-hint">PDF، JPG، PNG — حتى 10MB</div>
-              </div>
-              <div class="file-list" id="files-spouse"></div>
-            </div>
+          <div id="spouse-works-note" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(201,168,76,0.08);border-radius:8px;font-size:13px;color:#92400E;">
+            ℹ️ سيُطلب منك رفع ملف 106 للزوج/الزوجة في الخطوة 3 للسنوات التي تزوجتم فيها أو بعدها.
           </div>
         </div>
       </div>
@@ -560,32 +556,32 @@ body {
     <div class="step-header">
       <div class="step-badge">✦ الخطوة 3 من 7</div>
       <h1 class="step-title">دخل العمل</h1>
-      <p class="step-sub">ارفع ملف 106 الخاص بك هنا. يمكنك رفع أكثر من ملف إذا عملت في أكثر من مكان.</p>
+      <p class="step-sub">اختر السنوات التي تريد فحصها، وارفع ملف 106 لكل سنة.</p>
     </div>
+
     <div class="card">
       <div class="field">
-        <label><span class="req">*</span> ما السنة التي تريد فحصها؟</label>
-        <div class="radio-group inline" id="year-group">
-          <div class="radio-item" onclick="selectRadio(this,'check-year','2025')"><div class="radio-dot"></div>2025</div>
-          <div class="radio-item" onclick="selectRadio(this,'check-year','2024')"><div class="radio-dot"></div>2024</div>
-          <div class="radio-item" onclick="selectRadio(this,'check-year','2023')"><div class="radio-dot"></div>2023</div>
-          <div class="radio-item" onclick="selectRadio(this,'check-year','2022')"><div class="radio-dot"></div>2022</div>
-          <div class="radio-item" onclick="selectRadio(this,'check-year','2021')"><div class="radio-dot"></div>2021</div>
-          <div class="radio-item" onclick="selectRadio(this,'check-year','2020')"><div class="radio-dot"></div>2020</div>
+        <label><span class="req">*</span> اختر السنوات التي تريد فحصها
+          <span class="hint">يمكنك اختيار أكثر من سنة</span>
+        </label>
+        <div class="check-group inline" id="years-check-group">
+          <div class="check-item" onclick="toggleYear(this,'2025')"><div class="check-box"></div>2025</div>
+          <div class="check-item" onclick="toggleYear(this,'2024')"><div class="check-box"></div>2024</div>
+          <div class="check-item" onclick="toggleYear(this,'2023')"><div class="check-box"></div>2023</div>
+          <div class="check-item" onclick="toggleYear(this,'2022')"><div class="check-box"></div>2022</div>
+          <div class="check-item" onclick="toggleYear(this,'2021')"><div class="check-box"></div>2021</div>
+          <div class="check-item" onclick="toggleYear(this,'2020')"><div class="check-box"></div>2020</div>
         </div>
-        <input type="hidden" id="check-year">
+        <div class="check-item" style="margin-top:10px;max-width:160px" onclick="toggleAllYears(this)"><div class="check-box" id="all-years-box"></div>كل السنوات</div>
       </div>
+    </div>
+
+    <!-- Dynamic per-year cards -->
+    <div id="year-cards-container"></div>
+
+    <div class="card" id="general-questions-card" style="display:none">
       <div class="field">
-        <label>كم عدد أماكن عملك خلال هذه السنة؟</label>
-        <div class="radio-group inline" id="employers-group">
-          <div class="radio-item" onclick="selectRadio(this,'employers','1')"><div class="radio-dot"></div>مكان واحد</div>
-          <div class="radio-item" onclick="selectRadio(this,'employers','2')"><div class="radio-dot"></div>مكانان</div>
-          <div class="radio-item" onclick="selectRadio(this,'employers','3+')"><div class="radio-dot"></div>3 أو أكثر</div>
-        </div>
-        <input type="hidden" id="employers">
-      </div>
-      <div class="field">
-        <label>هل عملت فقط جزءاً من السنة؟</label>
+        <label>هل عملت فقط جزءاً من إحدى السنوات؟</label>
         <div class="yn-group">
           <button class="yn-btn yes" onclick="selectYN(this,'partial-year','نعم')">✅ نعم</button>
           <button class="yn-btn no" onclick="selectYN(this,'partial-year','لا')">❌ لا</button>
@@ -602,32 +598,6 @@ body {
       </div>
     </div>
 
-    <div class="card">
-      <div class="field" id="f-file106">
-        <label><span class="req">*</span> ارفع ملف 106 الأساسي
-          <span class="hint">تحصل عليه من مشغلك أو من موقع مصلحة الضرائب</span>
-        </label>
-        <div class="file-area" onclick="document.getElementById('file-106').click()">
-          <input type="file" id="file-106" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="handleFile(this,'files-106')">
-          <div class="file-area-icon">📄</div>
-          <div class="file-area-text">اضغط لرفع ملف 106</div>
-          <div class="file-area-hint">PDF، JPG، PNG — حتى 10MB لكل ملف</div>
-        </div>
-        <div class="file-list" id="files-106"></div>
-        <div class="error-msg">يرجى رفع ملف 106</div>
-      </div>
-      <div class="divider"></div>
-      <div class="field">
-        <label>ملفات 106 إضافية <span style="color:var(--gray);font-weight:500">(إذا عملت في أكثر من مكان)</span></label>
-        <div class="file-area" onclick="document.getElementById('file-106-extra').click()">
-          <input type="file" id="file-106-extra" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="handleFile(this,'files-106-extra')">
-          <div class="file-area-icon">📎</div>
-          <div class="file-area-text">اضغط لرفع ملفات إضافية</div>
-          <div class="file-area-hint">اختياري — يمكنك رفع أكثر من ملف</div>
-        </div>
-        <div class="file-list" id="files-106-extra"></div>
-      </div>
-    </div>
     <div class="nav-btns">
       <button class="btn-prev" onclick="goPrev(3)">→ السابق</button>
       <button class="btn-next" onclick="goNext(3)">التالي ←</button>
@@ -1049,6 +1019,223 @@ function submitForm() {
   document.getElementById('s-result').textContent = window._resultText || '—';
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
+
+// MARRIAGE YEAR CHANGE
+function onMarriageYearChange() {
+  // triggers re-render of year cards if step 3 already built
+  renderYearCards();
+}
+
+function onSpouseWorksChange(val) {
+  const note = document.getElementById('spouse-works-note');
+  if (note) note.style.display = val === 'نعم' ? 'block' : 'none';
+}
+
+// YEARS MULTI-SELECT
+let selectedYears = [];
+const ALL_YEARS = ['2025','2024','2023','2022','2021','2020'];
+
+function toggleYear(el, year) {
+  el.classList.toggle('selected');
+  const box = el.querySelector('.check-box');
+  if (el.classList.contains('selected')) {
+    box.style.borderColor = 'var(--navy)';
+    box.style.background = 'var(--navy)';
+    box.style.color = 'white';
+    box.style.fontSize = '11px';
+    box.style.display = 'flex';
+    box.style.alignItems = 'center';
+    box.style.justifyContent = 'center';
+    box.textContent = '✓';
+    if (!selectedYears.includes(year)) selectedYears.push(year);
+  } else {
+    box.style.borderColor = '';
+    box.style.background = '';
+    box.textContent = '';
+    selectedYears = selectedYears.filter(y => y !== year);
+  }
+  // sync all-years checkbox
+  const allBox = document.getElementById('all-years-box');
+  const allItem = allBox.closest('.check-item');
+  if (selectedYears.length === ALL_YEARS.length) {
+    allItem.classList.add('selected');
+    styleCheckBox(allBox, true);
+  } else {
+    allItem.classList.remove('selected');
+    styleCheckBox(allBox, false);
+  }
+  renderYearCards();
+}
+
+function toggleAllYears(el) {
+  const box = document.getElementById('all-years-box');
+  const isSelected = !el.classList.contains('selected');
+  el.classList.toggle('selected', isSelected);
+  styleCheckBox(box, isSelected);
+  // select or deselect all year items
+  document.querySelectorAll('#years-check-group .check-item').forEach((item, i) => {
+    const yr = ALL_YEARS[i];
+    const b = item.querySelector('.check-box');
+    item.classList.toggle('selected', isSelected);
+    styleCheckBox(b, isSelected);
+  });
+  selectedYears = isSelected ? [...ALL_YEARS] : [];
+  renderYearCards();
+}
+
+function styleCheckBox(box, on) {
+  if (on) {
+    box.style.borderColor = 'var(--navy)';
+    box.style.background = 'var(--navy)';
+    box.style.color = 'white';
+    box.style.fontSize = '11px';
+    box.style.display = 'flex';
+    box.style.alignItems = 'center';
+    box.style.justifyContent = 'center';
+    box.textContent = '✓';
+  } else {
+    box.style.borderColor = '';
+    box.style.background = '';
+    box.textContent = '';
+  }
+}
+
+function renderYearCards() {
+  const container = document.getElementById('year-cards-container');
+  const genCard = document.getElementById('general-questions-card');
+  if (!container) return;
+
+  const marriageYear = parseInt(document.getElementById('marriage-year')?.value) || 0;
+  const spouseWorks = document.getElementById('spouse-works')?.value === 'نعم';
+  const sorted = [...selectedYears].sort((a,b) => b - a);
+
+  if (sorted.length === 0) {
+    container.innerHTML = '';
+    if (genCard) genCard.style.display = 'none';
+    return;
+  }
+
+  if (genCard) genCard.style.display = 'block';
+
+  container.innerHTML = sorted.map(year => {
+    const needSpouse = spouseWorks && marriageYear > 0 && parseInt(year) >= marriageYear;
+    return `
+    <div class="card" style="border-right:4px solid var(--gold)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+        <div style="background:linear-gradient(135deg,var(--gold),var(--gold-light));
+          color:var(--navy);font-weight:900;font-size:15px;padding:6px 14px;
+          border-radius:8px;">${year}</div>
+        <span style="font-size:14px;font-weight:700;color:var(--navy)">تفاصيل سنة ${year}</span>
+      </div>
+
+      <div class="field">
+        <label><span class="req">*</span> كم عدد أماكن عملك في ${year}؟</label>
+        <div class="radio-group inline" id="employers-${year}">
+          <div class="radio-item" onclick="selectRadio(this,'employers-val-${year}','1');updateFileCount('${year}',1)"><div class="radio-dot"></div>مكان واحد</div>
+          <div class="radio-item" onclick="selectRadio(this,'employers-val-${year}','2');updateFileCount('${year}',2)"><div class="radio-dot"></div>مكانان</div>
+          <div class="radio-item" onclick="selectRadio(this,'employers-val-${year}','3+');updateFileCount('${year}',3)"><div class="radio-dot"></div>3 أو أكثر</div>
+        </div>
+        <input type="hidden" id="employers-val-${year}">
+      </div>
+
+      <div id="files-section-${year}" style="display:none">
+        <div id="files-container-${year}"></div>
+        ${needSpouse ? `
+        <div class="divider"></div>
+        <div class="field" id="f-spouse-${year}">
+          <label><span class="req">*</span> ارفع ملف 106 للزوج/الزوجة — ${year}
+            <span class="hint">إلزامي لأنكما كنتما متزوجين وكلاكما يعمل في هذه السنة</span>
+          </label>
+          <div class="file-area" onclick="document.getElementById('file-spouse-${year}').click()">
+            <input type="file" id="file-spouse-${year}" accept=".pdf,.jpg,.jpeg,.png"
+              onchange="handleFile(this,'files-spouse-${year}')">
+            <div class="file-area-icon">👫</div>
+            <div class="file-area-text">ملف 106 للزوج/الزوجة</div>
+            <div class="file-area-hint">PDF، JPG، PNG — حتى 10MB</div>
+          </div>
+          <div class="file-list" id="files-spouse-${year}"></div>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateFileCount(year, count) {
+  const section = document.getElementById(`files-section-${year}`);
+  const container = document.getElementById(`files-container-${year}`);
+  if (!section || !container) return;
+  section.style.display = 'block';
+
+  const labels = ['الأول','الثاني','الثالث'];
+  container.innerHTML = '';
+  for (let i = 1; i <= count; i++) {
+    const lbl = count === 1 ? '' : ` — المشغّل ${labels[i-1] || i}`;
+    container.innerHTML += `
+      <div class="field" id="f-106-${year}-${i}" style="${i>1?'margin-top:14px':''}">
+        <label><span class="req">*</span> ارفع ملف 106 — ${year}${lbl}</label>
+        <div class="file-area" onclick="document.getElementById('file-106-${year}-${i}').click()">
+          <input type="file" id="file-106-${year}-${i}" accept=".pdf,.jpg,.jpeg,.png"
+            onchange="handleFile(this,'files-106-${year}-${i}')">
+          <div class="file-area-icon">📄</div>
+          <div class="file-area-text">اضغط لرفع ملف 106</div>
+          <div class="file-area-hint">PDF، JPG، PNG — حتى 10MB</div>
+        </div>
+        <div class="file-list" id="files-106-${year}-${i}"></div>
+      </div>`;
+  }
+}
+
+// Override validateStep for step 3
+const _origValidate = validateStep;
+validateStep = function(step) {
+  if (step === 3) {
+    if (selectedYears.length === 0) {
+      alert('يرجى اختيار سنة واحدة على الأقل');
+      return false;
+    }
+    // Check each year has employer count set and files uploaded
+    for (const year of selectedYears) {
+      const emp = document.getElementById(`employers-val-${year}`)?.value;
+      if (!emp) {
+        alert(`يرجى تحديد عدد أماكن العمل لسنة ${year}`);
+        return false;
+      }
+      const count = emp === '3+' ? 3 : parseInt(emp);
+      for (let i = 1; i <= count; i++) {
+        const fileList = document.getElementById(`files-106-${year}-${i}`);
+        if (!fileList || fileList.children.length === 0) {
+          alert(`يرجى رفع ملف 106 لسنة ${year}`);
+          return false;
+        }
+      }
+    }
+    // update check-year for backward compat
+    document.getElementById('check-year') && (document.getElementById('check-year').value = selectedYears.join(','));
+    return true;
+  }
+  return _origValidate(step);
+};
+
+// Update score calculation to handle multi-employer across years
+const _origCalc = calculateResult;
+calculateResult = function() {
+  // count total employers across years for scoring
+  let maxEmployers = 1;
+  for (const year of selectedYears) {
+    const emp = document.getElementById(`employers-val-${year}`)?.value;
+    if (emp === '3+') maxEmployers = Math.max(maxEmployers, 3);
+    else if (emp) maxEmployers = Math.max(maxEmployers, parseInt(emp));
+  }
+  // temporarily set employers value for score
+  if (!document.getElementById('employers')) {
+    const h = document.createElement('input');
+    h.type = 'hidden'; h.id = 'employers'; h.value = maxEmployers >= 3 ? '3+' : String(maxEmployers);
+    document.body.appendChild(h);
+  } else {
+    document.getElementById('employers').value = maxEmployers >= 3 ? '3+' : String(maxEmployers);
+  }
+  _origCalc();
+};
 
 // STATUS CHANGE — hide children section if single
 function onStatusChange(val) {
