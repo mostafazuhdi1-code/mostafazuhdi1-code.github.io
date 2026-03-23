@@ -446,8 +446,8 @@ body {
       <div class="field">
         <label><span class="req">*</span> هل أنت متزوج/ة؟</label>
         <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'married','نعم');toggleConditional('married-fields','نعم')">✅ نعم</button>
-          <button class="yn-btn no" onclick="selectYN(this,'married','لا');toggleConditional('married-fields','لا')">❌ لا</button>
+          <button class="yn-btn yes" onclick="selectYN(this,'married','نعم');toggleConditional('married-fields','نعم');syncMarriedToStep2('نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'married','لا');toggleConditional('married-fields','لا');syncMarriedToStep2('لا')">❌ لا</button>
         </div>
         <input type="hidden" id="married">
         <div class="conditional" id="married-fields">
@@ -493,12 +493,15 @@ body {
     <div class="card">
       <div class="field">
         <label>الحالة الاجتماعية</label>
+        <div id="status-locked-note" style="display:none;margin-bottom:8px;padding:10px 14px;background:rgba(201,168,76,0.08);border-radius:8px;font-size:13px;color:#92400E;">
+          ℹ️ اخترت في الخطوة السابقة أنك متزوج/ة — الخيارات المتاحة تتوافق مع ذلك.
+        </div>
         <select id="status" onchange="onStatusChange(this.value)">
           <option value="">اختر...</option>
-          <option>أعزب/عزباء</option>
-          <option>متزوج/ة</option>
-          <option>مطلق/ة</option>
-          <option>أرمل/ة</option>
+          <option value="أعزب/عزباء" id="opt-single">أعزب/عزباء</option>
+          <option value="متزوج/ة" id="opt-married">متزوج/ة</option>
+          <option value="مطلق/ة">مطلق/ة</option>
+          <option value="أرمل/ة">أرمل/ة</option>
         </select>
       </div>
       <div id="children-section">
@@ -1018,6 +1021,30 @@ function submitForm() {
   document.getElementById('s-year').textContent = document.getElementById('check-year').value || '—';
   document.getElementById('s-result').textContent = window._resultText || '—';
   window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// SYNC MARRIED FROM STEP 1 TO STEP 2
+function syncMarriedToStep2(val) {
+  const select = document.getElementById('status');
+  const note = document.getElementById('status-locked-note');
+  const optSingle = document.getElementById('opt-single');
+  const optMarried = document.getElementById('opt-married');
+
+  if (val === 'نعم') {
+    // If married in step 1: pre-select متزوج/ة and disable أعزب
+    select.value = 'متزوج/ة';
+    if (optSingle) optSingle.disabled = true;
+    if (optMarried) optMarried.style.display = '';
+    if (note) note.style.display = 'block';
+    onStatusChange('متزوج/ة');
+  } else {
+    // If not married: remove متزوج/ة option, re-enable أعزب
+    select.value = '';
+    if (optSingle) optSingle.disabled = false;
+    if (optMarried) { optMarried.style.display = 'none'; }
+    if (note) note.style.display = 'none';
+    onStatusChange('');
+  }
 }
 
 // MARRIAGE YEAR CHANGE
