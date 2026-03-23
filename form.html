@@ -1055,6 +1055,22 @@ function calculateResult() {
 
 // SUBMIT
 function submitForm() {
+  const data = {
+    الاسم: document.getElementById('name').value,
+    الهاتف: document.getElementById('phone').value,
+    الإيميل: document.getElementById('email').value,
+    السنة: document.getElementById('check-year').value,
+    النتيجة: window._resultText || '—',
+    متزوج: document.getElementById('married').value,
+    عددالأولاد: document.getElementById('children').value,
+    بطالة: document.getElementById('bitula').value,
+    ميلواييم: document.getElementById('miluim').value,
+  };
+  fetch('https://formspree.io/f/mojkgavy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  });
   document.getElementById('mainForm').style.display = 'none';
   document.getElementById('progressWrap').style.display = 'none';
   const sp = document.getElementById('successPage');
@@ -1064,6 +1080,7 @@ function submitForm() {
   document.getElementById('s-year').textContent = document.getElementById('check-year').value || '—';
   document.getElementById('s-result').textContent = window._resultText || '—';
   window.scrollTo({top: 0, behavior: 'smooth'});
+  
 }
 
 // YN SELECT
