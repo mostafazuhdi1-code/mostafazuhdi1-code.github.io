@@ -433,23 +433,16 @@ body {
       </div>
       <div class="field">
         <label><span class="req">*</span> الجنس</label>
-        <div class="yn-group">
-          <button class="yn-btn" onclick="selectYN(this,'gender','ذكر')">👨 ذكر</button>
-          <button class="yn-btn" onclick="selectYN(this,'gender','أنثى')">👩 أنثى</button>
+        <div class="radio-group inline">
+          <div class="radio-item" onclick="selectRadio(this,'gender','ذكر')"><div class="radio-dot"></div>👨 ذكر</div>
+          <div class="radio-item" onclick="selectRadio(this,'gender','أنثى')"><div class="radio-dot"></div>👩 أنثى</div>
         </div>
         <input type="hidden" id="gender">
       </div>
     </div>
 
     <div class="card">
-      <div class="field">
-        <label><span class="req">*</span> هل أنت مقيم في إسرائيل؟</label>
-        <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'resident','نعم')">✅ نعم</button>
-          <button class="yn-btn no" onclick="selectYN(this,'resident','لا')">❌ لا</button>
-        </div>
-        <input type="hidden" id="resident">
-      </div>
+      <input type="hidden" id="resident" value="نعم">
       <div class="field">
         <label><span class="req">*</span> هل أنت متزوج/ة؟</label>
         <div class="yn-group">
@@ -469,20 +462,22 @@ body {
           <div class="field">
             <label>هل الزوج/الزوجة يعمل/تعمل؟</label>
             <div class="yn-group">
-              <button class="yn-btn yes" onclick="selectYN(this,'spouse-works','نعم')">✅ نعم</button>
-              <button class="yn-btn no" onclick="selectYN(this,'spouse-works','لا')">❌ لا</button>
+              <button class="yn-btn yes" onclick="selectYN(this,'spouse-works','نعم');toggleConditional('spouse-file-field','نعم')">✅ نعم</button>
+              <button class="yn-btn no" onclick="selectYN(this,'spouse-works','لا');toggleConditional('spouse-file-field','لا')">❌ لا</button>
             </div>
             <input type="hidden" id="spouse-works">
           </div>
-          <div class="field">
-            <label>ارفع ملف 106 للزوج/الزوجة <span style="color:var(--gray);font-weight:500">(اختياري)</span></label>
-            <div class="file-area" onclick="document.getElementById('file-spouse').click()">
-              <input type="file" id="file-spouse" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,'files-spouse')">
-              <div class="file-area-icon">📎</div>
-              <div class="file-area-text">اضغط لرفع الملف</div>
-              <div class="file-area-hint">PDF، JPG، PNG — حتى 10MB</div>
+          <div class="conditional" id="spouse-file-field">
+            <div class="field">
+              <label>ارفع ملف 106 للزوج/الزوجة</label>
+              <div class="file-area" onclick="document.getElementById('file-spouse').click()">
+                <input type="file" id="file-spouse" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,'files-spouse')">
+                <div class="file-area-icon">📎</div>
+                <div class="file-area-text">اضغط لرفع الملف</div>
+                <div class="file-area-hint">PDF، JPG، PNG — حتى 10MB</div>
+              </div>
+              <div class="file-list" id="files-spouse"></div>
             </div>
-            <div class="file-list" id="files-spouse"></div>
           </div>
         </div>
       </div>
@@ -495,14 +490,14 @@ body {
   <!-- STEP 2: الحالة العائلية -->
   <div class="step" id="step2">
     <div class="step-header">
-      <div class="step-badge">✦ الخطوة 2 من 7</div>
+      <div class="step-badge">&#x2726; الخطوة 2 من 7</div>
       <h1 class="step-title">الحالة العائلية</h1>
       <p class="step-sub">هذه المعلومات تؤثر مباشرة على حساب نقاط الاستحقاق الضريبي.</p>
     </div>
     <div class="card">
       <div class="field">
         <label>الحالة الاجتماعية</label>
-        <select id="status">
+        <select id="status" onchange="onStatusChange(this.value)">
           <option value="">اختر...</option>
           <option>أعزب/عزباء</option>
           <option>متزوج/ة</option>
@@ -510,47 +505,53 @@ body {
           <option>أرمل/ة</option>
         </select>
       </div>
-      <div class="field">
-        <label>عدد الأولاد</label>
-        <div class="radio-group inline" id="children-group">
-          <div class="radio-item" onclick="selectRadio(this,'children','0')"><div class="radio-dot"></div>0</div>
-          <div class="radio-item" onclick="selectRadio(this,'children','1')"><div class="radio-dot"></div>1</div>
-          <div class="radio-item" onclick="selectRadio(this,'children','2')"><div class="radio-dot"></div>2</div>
-          <div class="radio-item" onclick="selectRadio(this,'children','3')"><div class="radio-dot"></div>3</div>
-          <div class="radio-item" onclick="selectRadio(this,'children','4+');toggleConditional('children-details','نعم')"><div class="radio-dot"></div>4+</div>
+      <div id="children-section">
+        <div class="field">
+          <label>هل يوجد ولد/بنت دون سن 18 يعطي نقاط استحقاق؟</label>
+          <div class="yn-group">
+            <button class="yn-btn yes" onclick="selectYN(this,'child-under18','نعم');toggleConditional('children-count-section','نعم')">&#x2705; نعم</button>
+            <button class="yn-btn no" onclick="selectYN(this,'child-under18','لا');toggleConditional('children-count-section','لا')">&#x274C; لا</button>
+          </div>
+          <input type="hidden" id="child-under18">
         </div>
-        <input type="hidden" id="children" value="0">
-      </div>
-      <div class="field">
-        <label>هل يوجد ولد/بنت دون سن 18؟</label>
-        <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'child-under18','نعم')">✅ نعم</button>
-          <button class="yn-btn no" onclick="selectYN(this,'child-under18','لا')">❌ لا</button>
+        <div class="conditional" id="children-count-section">
+          <div class="field">
+            <label>كم عدد الأولاد؟</label>
+            <div class="radio-group inline" id="children-group">
+              <div class="radio-item" onclick="selectRadio(this,'children','1');renderChildFields(1)"><div class="radio-dot"></div>1</div>
+              <div class="radio-item" onclick="selectRadio(this,'children','2');renderChildFields(2)"><div class="radio-dot"></div>2</div>
+              <div class="radio-item" onclick="selectRadio(this,'children','3');renderChildFields(3)"><div class="radio-dot"></div>3</div>
+              <div class="radio-item" onclick="selectRadio(this,'children','4');renderChildFields(4)"><div class="radio-dot"></div>4</div>
+              <div class="radio-item" onclick="selectRadio(this,'children','5+');renderChildFields(5)"><div class="radio-dot"></div>5+</div>
+            </div>
+            <input type="hidden" id="children" value="">
+          </div>
+          <div id="children-birth-fields"></div>
         </div>
-        <input type="hidden" id="child-under18">
       </div>
+      <div class="divider"></div>
       <div class="field">
         <label>هل يوجد فرد في العائلة باستحقاق خاص؟
-          <span class="hint">مثل إعاقة أو مرض مزمن</span>
+          <span class="hint">مثل إعاقة، مرض مزمن، أو ADHD</span>
         </label>
         <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'special-need','نعم')">✅ نعم</button>
-          <button class="yn-btn no" onclick="selectYN(this,'special-need','لا')">❌ لا</button>
+          <button class="yn-btn yes" onclick="selectYN(this,'special-need','نعم')">&#x2705; نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'special-need','لا')">&#x274C; لا</button>
         </div>
         <input type="hidden" id="special-need">
       </div>
       <div class="field">
         <label>هل توجد حالة طلاق أو نفقة تؤثر على الضريبة؟</label>
         <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'divorce','نعم')">✅ نعم</button>
-          <button class="yn-btn no" onclick="selectYN(this,'divorce','لا')">❌ لا</button>
+          <button class="yn-btn yes" onclick="selectYN(this,'divorce','نعم')">&#x2705; نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'divorce','لا')">&#x274C; لا</button>
         </div>
         <input type="hidden" id="divorce">
       </div>
     </div>
     <div class="nav-btns">
-      <button class="btn-prev" onclick="goPrev(2)">→ السابق</button>
-      <button class="btn-next" onclick="goNext(2)">التالي ←</button>
+      <button class="btn-prev" onclick="goPrev(2)">&#x2192; السابق</button>
+      <button class="btn-next" onclick="goNext(2)">التالي &#x2190;</button>
     </div>
   </div>
 
@@ -565,12 +566,12 @@ body {
       <div class="field">
         <label><span class="req">*</span> ما السنة التي تريد فحصها؟</label>
         <div class="radio-group inline" id="year-group">
+          <div class="radio-item" onclick="selectRadio(this,'check-year','2025')"><div class="radio-dot"></div>2025</div>
           <div class="radio-item" onclick="selectRadio(this,'check-year','2024')"><div class="radio-dot"></div>2024</div>
           <div class="radio-item" onclick="selectRadio(this,'check-year','2023')"><div class="radio-dot"></div>2023</div>
           <div class="radio-item" onclick="selectRadio(this,'check-year','2022')"><div class="radio-dot"></div>2022</div>
           <div class="radio-item" onclick="selectRadio(this,'check-year','2021')"><div class="radio-dot"></div>2021</div>
           <div class="radio-item" onclick="selectRadio(this,'check-year','2020')"><div class="radio-dot"></div>2020</div>
-          <div class="radio-item" onclick="selectRadio(this,'check-year','2019')"><div class="radio-dot"></div>2019</div>
         </div>
         <input type="hidden" id="check-year">
       </div>
@@ -677,23 +678,6 @@ body {
       <div class="divider"></div>
 
       <div class="field">
-        <label>هل خدمت في الميلواييم (احتياط)؟</label>
-        <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'miluim','نعم');toggleConditional('miluim-fields','نعم')">✅ نعم</button>
-          <button class="yn-btn no" onclick="selectYN(this,'miluim','لا');toggleConditional('miluim-fields','لا')">❌ لا</button>
-        </div>
-        <input type="hidden" id="miluim">
-        <div class="conditional" id="miluim-fields">
-          <div class="field">
-            <label>عدد الأيام التقريبي</label>
-            <input type="number" id="miluim-days" placeholder="مثال: 30">
-          </div>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="field">
         <label>هل تلقيت مخصصات من بيطوح لئومي؟</label>
         <div class="yn-group">
           <button class="yn-btn yes" onclick="selectYN(this,'bituah','نعم');toggleConditional('bituah-fields','نعم')">✅ نعم</button>
@@ -756,32 +740,33 @@ body {
       </div>
       <div class="divider"></div>
       <div class="field">
-        <label>هل لديك קופת גמל أو پنسيا شخرة؟</label>
-        <div class="radio-group inline">
-          <div class="radio-item" onclick="selectRadio(this,'kupah','نعم')"><div class="radio-dot"></div>نعم</div>
-          <div class="radio-item" onclick="selectRadio(this,'kupah','لا')"><div class="radio-dot"></div>لا</div>
-          <div class="radio-item" onclick="selectRadio(this,'kupah','لا أعرف')"><div class="radio-dot"></div>لا أعرف</div>
-        </div>
-        <input type="hidden" id="kupah">
-      </div>
-      <div class="divider"></div>
-      <div class="field">
         <label>هل أنهيت دراسة أكاديمية أو دورة مهنية معترفة؟</label>
         <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'education','نعم')">✅ نعم</button>
-          <button class="yn-btn no" onclick="selectYN(this,'education','لا')">❌ لا</button>
+          <button class="yn-btn yes" onclick="selectYN(this,'education','نعم');toggleConditional('education-fields','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'education','لا');toggleConditional('education-fields','لا')">❌ لا</button>
         </div>
         <input type="hidden" id="education">
+        <div class="conditional" id="education-fields">
+          <div class="field">
+            <label>في أي سنة أنهيت الدراسة؟</label>
+            <input type="number" id="education-year" placeholder="مثال: 2022" min="2000" max="2025">
+          </div>
+        </div>
       </div>
       <div class="divider"></div>
       <div class="field">
         <label>هل تسكن في منطقة ذات امتيازات ضريبية؟</label>
-        <div class="radio-group inline">
-          <div class="radio-item" onclick="selectRadio(this,'zone','نعم')"><div class="radio-dot"></div>نعم</div>
-          <div class="radio-item" onclick="selectRadio(this,'zone','لا')"><div class="radio-dot"></div>لا</div>
-          <div class="radio-item" onclick="selectRadio(this,'zone','لا أعرف')"><div class="radio-dot"></div>لا أعرف</div>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'zone','نعم');toggleConditional('zone-fields','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'zone','لا');toggleConditional('zone-fields','لا')">❌ لا</button>
         </div>
         <input type="hidden" id="zone">
+        <div class="conditional" id="zone-fields">
+          <div class="field">
+            <label>اسم البلدة أو المدينة</label>
+            <input type="text" id="zone-city" placeholder="مثال: عرابة، سخنين، دالية...">
+          </div>
+        </div>
       </div>
       <div class="divider"></div>
       <div class="field">
@@ -1011,7 +996,6 @@ function calculateResult() {
   if (document.getElementById('partial-year').value === 'نعم') score += 1;
   if (document.getElementById('bitula').value === 'نعم') score += 2;
   if (document.getElementById('lida').value === 'نعم') score += 1;
-  if (document.getElementById('miluim').value === 'نعم') score += 1;
   if (document.getElementById('child-under18').value === 'نعم') score += 1;
   if (document.getElementById('special-need').value === 'نعم') score += 1;
   if (document.getElementById('divorce').value === 'نعم') score += 1;
@@ -1055,22 +1039,6 @@ function calculateResult() {
 
 // SUBMIT
 function submitForm() {
-  const data = {
-    الاسم: document.getElementById('name').value,
-    الهاتف: document.getElementById('phone').value,
-    الإيميل: document.getElementById('email').value,
-    السنة: document.getElementById('check-year').value,
-    النتيجة: window._resultText || '—',
-    متزوج: document.getElementById('married').value,
-    عددالأولاد: document.getElementById('children').value,
-    بطالة: document.getElementById('bitula').value,
-    ميلواييم: document.getElementById('miluim').value,
-  };
-  fetch('https://formspree.io/f/mojkgavy', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(data)
-  });
   document.getElementById('mainForm').style.display = 'none';
   document.getElementById('progressWrap').style.display = 'none';
   const sp = document.getElementById('successPage');
@@ -1080,7 +1048,34 @@ function submitForm() {
   document.getElementById('s-year').textContent = document.getElementById('check-year').value || '—';
   document.getElementById('s-result').textContent = window._resultText || '—';
   window.scrollTo({top: 0, behavior: 'smooth'});
-  
+}
+
+// STATUS CHANGE — hide children section if single
+function onStatusChange(val) {
+  const sec = document.getElementById('children-section');
+  if (val === 'أعزب/عزباء') {
+    sec.style.display = 'none';
+    document.getElementById('child-under18').value = 'لا';
+    document.getElementById('children').value = '0';
+  } else {
+    sec.style.display = 'block';
+  }
+}
+
+// RENDER CHILD BIRTH YEAR FIELDS
+function renderChildFields(count) {
+  const container = document.getElementById('children-birth-fields');
+  container.innerHTML = '';
+  for (let i = 1; i <= count; i++) {
+    container.innerHTML += `
+      <div class="field" style="margin-top:12px">
+        <label>سنة ميلاد الولد/البنت رقم ${i}</label>
+        <input type="number" id="child-birth-${i}" placeholder="مثال: 2015" min="1990" max="2025"
+          style="width:100%;padding:11px 14px;border:1.5px solid var(--gray-light);border-radius:10px;
+          font-family:Cairo,sans-serif;font-size:14px;color:var(--text);background:var(--off-white);
+          outline:none;direction:rtl;">
+      </div>`;
+  }
 }
 
 // YN SELECT
