@@ -1,1 +1,1143 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>فحص الاسترجاع الضريبي — مصطفى محاميد</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0F2544;
+  --navy-light: #1A3C6E;
+  --gold: #C9A84C;
+  --gold-light: #E8C96A;
+  --white: #FFFFFF;
+  --off-white: #F5F7FA;
+  --gray: #6B7280;
+  --gray-light: #E5E7EB;
+  --text: #1A1A2E;
+  --green: #059669;
+  --green-light: #D1FAE5;
+  --orange: #D97706;
+  --orange-light: #FEF3C7;
+  --red: #DC2626;
+  --red-light: #FEE2E2;
+  --green-wa: #25D366;
+  --radius: 12px;
+  --radius-lg: 20px;
+  --shadow: 0 4px 24px rgba(15,37,68,0.10);
+  --shadow-md: 0 8px 40px rgba(15,37,68,0.14);
+}
 
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Cairo', sans-serif;
+  background: var(--off-white);
+  color: var(--text);
+  direction: rtl;
+  text-align: right;
+  min-height: 100vh;
+}
+
+/* TOP BAR */
+.topbar {
+  background: var(--navy);
+  padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+}
+.topbar-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.topbar-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 900; color: var(--navy);
+}
+.topbar-name { color: var(--white); font-size: 14px; font-weight: 700; }
+.topbar-name span { color: var(--gold-light); font-size: 12px; display: block; font-weight: 500; }
+.topbar-back {
+  color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 600;
+  text-decoration: none; display: flex; align-items: center; gap: 6px;
+  transition: color 0.2s;
+}
+.topbar-back:hover { color: var(--gold-light); }
+
+/* PROGRESS */
+.progress-wrap {
+  background: var(--white);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--gray-light);
+  position: sticky; top: 62px; z-index: 99;
+}
+.progress-info {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px;
+}
+.progress-label { font-size: 13px; font-weight: 700; color: var(--navy); }
+.progress-count { font-size: 13px; color: var(--gray); font-weight: 600; }
+.progress-bar-track {
+  height: 6px; background: var(--gray-light); border-radius: 50px; overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--gold-light));
+  border-radius: 50px;
+  transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+}
+.steps-dots {
+  display: flex; gap: 6px; margin-top: 10px; justify-content: center;
+}
+.step-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--gray-light); transition: all 0.3s;
+  cursor: pointer;
+}
+.step-dot.active { background: var(--gold); transform: scale(1.3); }
+.step-dot.done { background: var(--navy); }
+
+/* MAIN */
+.main { max-width: 680px; margin: 0 auto; padding: 28px 16px 80px; }
+
+/* STEP */
+.step { display: none; animation: stepIn 0.4s ease; }
+.step.active { display: block; }
+
+@keyframes stepIn {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.step-header { margin-bottom: 28px; }
+.step-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.3);
+  color: var(--gold); padding: 4px 12px; border-radius: 50px;
+  font-size: 12px; font-weight: 700; margin-bottom: 10px;
+}
+.step-title { font-size: 22px; font-weight: 900; color: var(--navy); margin-bottom: 6px; }
+.step-sub { font-size: 14px; color: var(--gray); line-height: 1.6; }
+
+/* CARD */
+.card {
+  background: var(--white); border: 1.5px solid var(--gray-light);
+  border-radius: var(--radius-lg); padding: 24px;
+  margin-bottom: 16px; box-shadow: var(--shadow);
+}
+
+/* FORM ELEMENTS */
+.field { margin-bottom: 20px; }
+.field:last-child { margin-bottom: 0; }
+.field label {
+  display: block; font-size: 14px; font-weight: 700; color: var(--navy);
+  margin-bottom: 7px;
+}
+.field label .req { color: var(--gold); margin-right: 3px; }
+.field label .hint { font-size: 12px; color: var(--gray); font-weight: 500; display: block; margin-top: 2px; }
+
+.field input[type="text"],
+.field input[type="tel"],
+.field input[type="email"],
+.field input[type="number"],
+.field select,
+.field textarea {
+  width: 100%; padding: 11px 14px;
+  border: 1.5px solid var(--gray-light); border-radius: 10px;
+  font-family: 'Cairo', sans-serif; font-size: 14px; color: var(--text);
+  background: var(--off-white); outline: none;
+  transition: border-color 0.2s, background 0.2s;
+  direction: rtl;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--navy); background: var(--white);
+  box-shadow: 0 0 0 3px rgba(15,37,68,0.06);
+}
+.field textarea { height: 90px; resize: none; }
+.field select { cursor: pointer; }
+
+/* RADIO / CHECKBOX */
+.radio-group, .check-group { display: flex; flex-direction: column; gap: 10px; }
+.radio-group.inline, .check-group.inline { flex-direction: row; flex-wrap: wrap; gap: 10px; }
+
+.radio-item, .check-item {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--off-white); border: 1.5px solid var(--gray-light);
+  border-radius: 10px; padding: 12px 14px; cursor: pointer;
+  transition: all 0.2s; font-size: 14px; font-weight: 600; color: var(--navy);
+  user-select: none;
+}
+.radio-item:hover, .check-item:hover { border-color: var(--gold); background: rgba(201,168,76,0.05); }
+.radio-item input, .check-item input { display: none; }
+.radio-item.selected, .check-item.selected {
+  border-color: var(--navy); background: rgba(15,37,68,0.05);
+}
+.radio-dot {
+  width: 18px; height: 18px; min-width: 18px;
+  border: 2px solid var(--gray-light); border-radius: 50%;
+  transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+}
+.radio-item.selected .radio-dot {
+  border-color: var(--navy); background: var(--navy);
+}
+.radio-item.selected .radio-dot::after {
+  content: ''; width: 6px; height: 6px;
+  background: white; border-radius: 50%;
+}
+.check-box {
+  width: 18px; height: 18px; min-width: 18px;
+  border: 2px solid var(--gray-light); border-radius: 5px;
+  transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: white;
+}
+.check-item.selected .check-box { border-color: var(--navy); background: var(--navy); }
+.check-item.selected .check-box::after { content: '✓'; }
+
+/* YES/NO */
+.yn-group { display: flex; gap: 12px; }
+.yn-btn {
+  flex: 1; padding: 12px; border: 1.5px solid var(--gray-light);
+  border-radius: 10px; background: var(--off-white);
+  font-family: 'Cairo', sans-serif; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; color: var(--navy);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.yn-btn:hover { border-color: var(--gold); }
+.yn-btn.yes.selected { background: var(--green-light); border-color: var(--green); color: var(--green); }
+.yn-btn.no.selected { background: rgba(15,37,68,0.06); border-color: var(--navy); color: var(--navy); }
+
+/* FILE UPLOAD */
+.file-area {
+  border: 2px dashed var(--gray-light); border-radius: 12px;
+  padding: 24px; text-align: center; cursor: pointer;
+  transition: all 0.2s; background: var(--off-white);
+  position: relative;
+}
+.file-area:hover { border-color: var(--gold); background: rgba(201,168,76,0.04); }
+.file-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.file-area-icon { font-size: 32px; margin-bottom: 8px; }
+.file-area-text { font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+.file-area-hint { font-size: 12px; color: var(--gray); }
+.file-list { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.file-tag {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--navy); color: white;
+  padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;
+}
+.file-tag-remove {
+  margin-right: auto; cursor: pointer; opacity: 0.7;
+  font-size: 16px; line-height: 1; transition: opacity 0.2s;
+  background: none; border: none; color: white; padding: 0;
+}
+.file-tag-remove:hover { opacity: 1; }
+
+/* CONDITIONAL */
+.conditional { display: none; margin-top: 14px; padding: 14px; background: rgba(201,168,76,0.06); border-radius: 10px; border: 1px solid rgba(201,168,76,0.2); }
+.conditional.show { display: block; }
+
+/* PRIVACY */
+.privacy-box {
+  background: rgba(15,37,68,0.04); border: 1.5px solid rgba(15,37,68,0.1);
+  border-radius: 10px; padding: 14px 16px;
+  display: flex; align-items: flex-start; gap: 12px;
+  font-size: 13px; color: var(--gray); line-height: 1.6; cursor: pointer;
+}
+.privacy-box .check-box { margin-top: 2px; flex-shrink: 0; }
+.privacy-box.selected .check-box { border-color: var(--navy); background: var(--navy); }
+.privacy-box.selected .check-box::after { content: '✓'; color: white; }
+
+/* NAVIGATION BUTTONS */
+.nav-btns {
+  display: flex; gap: 12px; margin-top: 24px;
+  position: sticky; bottom: 0;
+  background: linear-gradient(to top, var(--off-white) 80%, transparent);
+  padding: 16px 0 0;
+}
+.btn-next {
+  flex: 1; padding: 14px;
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  color: var(--navy); border: none; border-radius: 10px;
+  font-family: 'Cairo', sans-serif; font-size: 15px; font-weight: 800;
+  cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 16px rgba(201,168,76,0.3);
+}
+.btn-next:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(201,168,76,0.4); }
+.btn-next:active { transform: translateY(0); }
+.btn-prev {
+  padding: 14px 20px;
+  background: var(--white); border: 1.5px solid var(--gray-light);
+  color: var(--navy); border-radius: 10px;
+  font-family: 'Cairo', sans-serif; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-prev:hover { border-color: var(--navy); }
+
+/* RESULT PAGE */
+.result-card {
+  border-radius: var(--radius-lg); padding: 32px 28px; text-align: center;
+  margin-bottom: 20px;
+}
+.result-card.low { background: var(--off-white); border: 2px solid var(--gray-light); }
+.result-card.medium { background: var(--orange-light); border: 2px solid var(--orange); }
+.result-card.high { background: var(--green-light); border: 2px solid var(--green); }
+
+.result-icon { font-size: 52px; margin-bottom: 14px; }
+.result-title { font-size: 22px; font-weight: 900; margin-bottom: 8px; }
+.result-card.low .result-title { color: var(--navy); }
+.result-card.medium .result-title { color: var(--orange); }
+.result-card.high .result-title { color: var(--green); }
+
+.result-amount {
+  display: inline-block;
+  font-size: 28px; font-weight: 900; margin: 12px 0;
+  padding: 8px 20px; border-radius: 50px;
+}
+.result-card.low .result-amount { background: var(--gray-light); color: var(--navy); }
+.result-card.medium .result-amount { background: rgba(217,119,6,0.15); color: var(--orange); }
+.result-card.high .result-amount { background: rgba(5,150,105,0.15); color: var(--green); }
+
+.result-text { font-size: 15px; line-height: 1.7; margin-bottom: 6px; }
+.result-card.low .result-text { color: var(--gray); }
+.result-card.medium .result-text { color: #92400E; }
+.result-card.high .result-text { color: #065F46; }
+
+.result-disclaimer {
+  background: rgba(15,37,68,0.05); border-radius: 10px; padding: 14px 16px;
+  font-size: 12px; color: var(--gray); line-height: 1.7; margin-bottom: 20px;
+  border: 1px solid rgba(15,37,68,0.1);
+}
+
+.result-btns { display: flex; flex-direction: column; gap: 12px; }
+.btn-submit {
+  width: 100%; padding: 15px;
+  background: linear-gradient(135deg, var(--navy), var(--navy-light));
+  color: white; border: none; border-radius: 10px;
+  font-family: 'Cairo', sans-serif; font-size: 15px; font-weight: 800;
+  cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 16px rgba(15,37,68,0.25);
+}
+.btn-submit:hover { transform: translateY(-2px); }
+.btn-wa {
+  width: 100%; padding: 14px;
+  background: var(--green-wa); color: white; border: none; border-radius: 10px;
+  font-family: 'Cairo', sans-serif; font-size: 15px; font-weight: 800;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: opacity 0.2s;
+}
+.btn-wa:hover { opacity: 0.9; }
+.btn-wa svg { width: 20px; height: 20px; fill: white; }
+
+/* SUCCESS PAGE */
+.success-page { display: none; text-align: center; padding: 40px 20px; }
+.success-page.show { display: block; }
+.success-icon { font-size: 64px; margin-bottom: 16px; animation: bounce 0.6s ease; }
+.success-title { font-size: 26px; font-weight: 900; color: var(--navy); margin-bottom: 10px; }
+.success-text { font-size: 16px; color: var(--gray); line-height: 1.7; margin-bottom: 28px; }
+.success-card {
+  background: var(--white); border: 1.5px solid var(--gray-light);
+  border-radius: var(--radius-lg); padding: 24px; margin-bottom: 20px; text-align: right;
+}
+.success-card h3 { font-size: 16px; font-weight: 800; color: var(--navy); margin-bottom: 14px; }
+.success-detail { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; font-size: 14px; color: var(--gray); }
+.success-detail strong { color: var(--navy); }
+
+@keyframes bounce {
+  0%,100%{transform:scale(1)} 50%{transform:scale(1.15)}
+}
+
+/* WHATSAPP FLOAT */
+.wa-float {
+  position: fixed; bottom: 24px; left: 24px; z-index: 999;
+  width: 54px; height: 54px; background: var(--green-wa); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; text-decoration: none;
+  box-shadow: 0 4px 20px rgba(37,211,102,0.4);
+  animation: pulse-wa 2.5s infinite;
+}
+.wa-float:hover { animation: none; transform: scale(1.1); }
+.wa-float svg { width: 28px; height: 28px; fill: white; }
+@keyframes pulse-wa {
+  0%,100%{box-shadow:0 4px 20px rgba(37,211,102,0.4)}
+  50%{box-shadow:0 4px 28px rgba(37,211,102,0.65),0 0 0 6px rgba(37,211,102,0.1)}
+}
+
+/* DIVIDER */
+.divider { height: 1px; background: var(--gray-light); margin: 20px 0; }
+
+/* ERROR */
+.error-msg { font-size: 12px; color: var(--red); margin-top: 5px; font-weight: 600; display: none; }
+.field.has-error input, .field.has-error select, .field.has-error textarea {
+  border-color: var(--red);
+}
+.field.has-error .error-msg { display: block; }
+
+@media(max-width:480px){
+  .main { padding: 20px 12px 80px; }
+  .step-title { font-size: 18px; }
+  .card { padding: 18px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <a href="index.html" class="topbar-brand">
+    <div class="topbar-icon">م</div>
+    <div class="topbar-name">مصطفى محاميد <span>مكتب محاسبة وضرائب</span></div>
+  </a>
+  <a href="index.html" class="topbar-back">← العودة للموقع</a>
+</div>
+
+<!-- PROGRESS -->
+<div class="progress-wrap" id="progressWrap">
+  <div class="progress-info">
+    <span class="progress-label" id="progressLabel">الخطوة 1 من 7</span>
+    <span class="progress-count" id="progressCount">المعلومات الشخصية</span>
+  </div>
+  <div class="progress-bar-track">
+    <div class="progress-bar-fill" id="progressFill" style="width:14%"></div>
+  </div>
+  <div class="steps-dots" id="stepsDots"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="mainForm">
+
+  <!-- STEP 1: المعلومات الشخصية -->
+  <div class="step active" id="step1">
+    <div class="step-header">
+      <div class="step-badge">✦ الخطوة 1 من 7</div>
+      <h1 class="step-title">معلوماتك الشخصية</h1>
+      <p class="step-sub">المعلومات الأساسية التي نحتاجها للتواصل معك.</p>
+    </div>
+    <div class="card">
+      <div class="field" id="f-name">
+        <label><span class="req">*</span> الاسم الكامل</label>
+        <input type="text" id="name" placeholder="مثال: محمد أحمد">
+        <div class="error-msg">هذا الحقل إلزامي</div>
+      </div>
+      <div class="field" id="f-phone">
+        <label><span class="req">*</span> رقم الهاتف</label>
+        <input type="tel" id="phone" placeholder="05X-XXX-XXXX">
+        <div class="error-msg">أدخل رقم هاتف صحيح</div>
+      </div>
+      <div class="field">
+        <label>البريد الإلكتروني <span style="color:var(--gray);font-weight:500">(اختياري)</span></label>
+        <input type="email" id="email" placeholder="example@email.com">
+      </div>
+      <div class="field" id="f-birthyear">
+        <label><span class="req">*</span> سنة الميلاد</label>
+        <input type="number" id="birthyear" placeholder="مثال: 1985" min="1940" max="2005">
+        <div class="error-msg">أدخل سنة ميلاد صحيحة</div>
+      </div>
+      <div class="field">
+        <label><span class="req">*</span> الجنس</label>
+        <div class="radio-group inline">
+          <div class="radio-item" onclick="selectRadio(this,'gender','ذكر')"><div class="radio-dot"></div>👨 ذكر</div>
+          <div class="radio-item" onclick="selectRadio(this,'gender','أنثى')"><div class="radio-dot"></div>👩 أنثى</div>
+        </div>
+        <input type="hidden" id="gender">
+      </div>
+    </div>
+
+    <div class="card">
+      <input type="hidden" id="resident" value="نعم">
+      <div class="field">
+        <label><span class="req">*</span> هل أنت متزوج/ة؟</label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'married','نعم');toggleConditional('married-fields','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'married','لا');toggleConditional('married-fields','لا')">❌ لا</button>
+        </div>
+        <input type="hidden" id="married">
+        <div class="conditional" id="married-fields">
+          <div class="field">
+            <label>اسم الزوج/الزوجة</label>
+            <input type="text" id="spouse-name" placeholder="الاسم الكامل">
+          </div>
+          <div class="field">
+            <label>سنة ميلاد الزوج/الزوجة</label>
+            <input type="number" id="spouse-birth" placeholder="مثال: 1987" min="1940" max="2005">
+          </div>
+          <div class="field">
+            <label>هل الزوج/الزوجة يعمل/تعمل؟</label>
+            <div class="yn-group">
+              <button class="yn-btn yes" onclick="selectYN(this,'spouse-works','نعم');toggleConditional('spouse-file-field','نعم')">✅ نعم</button>
+              <button class="yn-btn no" onclick="selectYN(this,'spouse-works','لا');toggleConditional('spouse-file-field','لا')">❌ لا</button>
+            </div>
+            <input type="hidden" id="spouse-works">
+          </div>
+          <div class="conditional" id="spouse-file-field">
+            <div class="field">
+              <label>ارفع ملف 106 للزوج/الزوجة</label>
+              <div class="file-area" onclick="document.getElementById('file-spouse').click()">
+                <input type="file" id="file-spouse" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,'files-spouse')">
+                <div class="file-area-icon">📎</div>
+                <div class="file-area-text">اضغط لرفع الملف</div>
+                <div class="file-area-hint">PDF، JPG، PNG — حتى 10MB</div>
+              </div>
+              <div class="file-list" id="files-spouse"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-next" onclick="goNext(1)">التالي ←</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: الحالة العائلية -->
+  <div class="step" id="step2">
+    <div class="step-header">
+      <div class="step-badge">&#x2726; الخطوة 2 من 7</div>
+      <h1 class="step-title">الحالة العائلية</h1>
+      <p class="step-sub">هذه المعلومات تؤثر مباشرة على حساب نقاط الاستحقاق الضريبي.</p>
+    </div>
+    <div class="card">
+      <div class="field">
+        <label>الحالة الاجتماعية</label>
+        <select id="status" onchange="onStatusChange(this.value)">
+          <option value="">اختر...</option>
+          <option>أعزب/عزباء</option>
+          <option>متزوج/ة</option>
+          <option>مطلق/ة</option>
+          <option>أرمل/ة</option>
+        </select>
+      </div>
+      <div id="children-section">
+        <div class="field">
+          <label>هل يوجد ولد/بنت دون سن 18 يعطي نقاط استحقاق؟</label>
+          <div class="yn-group">
+            <button class="yn-btn yes" onclick="selectYN(this,'child-under18','نعم');toggleConditional('children-count-section','نعم')">&#x2705; نعم</button>
+            <button class="yn-btn no" onclick="selectYN(this,'child-under18','لا');toggleConditional('children-count-section','لا')">&#x274C; لا</button>
+          </div>
+          <input type="hidden" id="child-under18">
+        </div>
+        <div class="conditional" id="children-count-section">
+          <div class="field">
+            <label>كم عدد الأولاد؟</label>
+            <div class="radio-group inline" id="children-group">
+              <div class="radio-item" onclick="selectRadio(this,'children','1');renderChildFields(1)"><div class="radio-dot"></div>1</div>
+              <div class="radio-item" onclick="selectRadio(this,'children','2');renderChildFields(2)"><div class="radio-dot"></div>2</div>
+              <div class="radio-item" onclick="selectRadio(this,'children','3');renderChildFields(3)"><div class="radio-dot"></div>3</div>
+              <div class="radio-item" onclick="selectRadio(this,'children','4');renderChildFields(4)"><div class="radio-dot"></div>4</div>
+              <div class="radio-item" onclick="selectRadio(this,'children','5+');renderChildFields(5)"><div class="radio-dot"></div>5+</div>
+            </div>
+            <input type="hidden" id="children" value="">
+          </div>
+          <div id="children-birth-fields"></div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="field">
+        <label>هل يوجد فرد في العائلة باستحقاق خاص؟
+          <span class="hint">مثل إعاقة، مرض مزمن، أو ADHD</span>
+        </label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'special-need','نعم')">&#x2705; نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'special-need','لا')">&#x274C; لا</button>
+        </div>
+        <input type="hidden" id="special-need">
+      </div>
+      <div class="field">
+        <label>هل توجد حالة طلاق أو نفقة تؤثر على الضريبة؟</label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'divorce','نعم')">&#x2705; نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'divorce','لا')">&#x274C; لا</button>
+        </div>
+        <input type="hidden" id="divorce">
+      </div>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-prev" onclick="goPrev(2)">&#x2192; السابق</button>
+      <button class="btn-next" onclick="goNext(2)">التالي &#x2190;</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: دخل العمل -->
+  <div class="step" id="step3">
+    <div class="step-header">
+      <div class="step-badge">✦ الخطوة 3 من 7</div>
+      <h1 class="step-title">دخل العمل</h1>
+      <p class="step-sub">ارفع ملف 106 الخاص بك هنا. يمكنك رفع أكثر من ملف إذا عملت في أكثر من مكان.</p>
+    </div>
+    <div class="card">
+      <div class="field">
+        <label><span class="req">*</span> ما السنة التي تريد فحصها؟</label>
+        <div class="radio-group inline" id="year-group">
+          <div class="radio-item" onclick="selectRadio(this,'check-year','2025')"><div class="radio-dot"></div>2025</div>
+          <div class="radio-item" onclick="selectRadio(this,'check-year','2024')"><div class="radio-dot"></div>2024</div>
+          <div class="radio-item" onclick="selectRadio(this,'check-year','2023')"><div class="radio-dot"></div>2023</div>
+          <div class="radio-item" onclick="selectRadio(this,'check-year','2022')"><div class="radio-dot"></div>2022</div>
+          <div class="radio-item" onclick="selectRadio(this,'check-year','2021')"><div class="radio-dot"></div>2021</div>
+          <div class="radio-item" onclick="selectRadio(this,'check-year','2020')"><div class="radio-dot"></div>2020</div>
+        </div>
+        <input type="hidden" id="check-year">
+      </div>
+      <div class="field">
+        <label>كم عدد أماكن عملك خلال هذه السنة؟</label>
+        <div class="radio-group inline" id="employers-group">
+          <div class="radio-item" onclick="selectRadio(this,'employers','1')"><div class="radio-dot"></div>مكان واحد</div>
+          <div class="radio-item" onclick="selectRadio(this,'employers','2')"><div class="radio-dot"></div>مكانان</div>
+          <div class="radio-item" onclick="selectRadio(this,'employers','3+')"><div class="radio-dot"></div>3 أو أكثر</div>
+        </div>
+        <input type="hidden" id="employers">
+      </div>
+      <div class="field">
+        <label>هل عملت فقط جزءاً من السنة؟</label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'partial-year','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'partial-year','لا')">❌ لا</button>
+        </div>
+        <input type="hidden" id="partial-year">
+      </div>
+      <div class="field">
+        <label>هل كانت هناك فترات بطالة أو توقف عن العمل؟</label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'unemployment','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'unemployment','لا')">❌ لا</button>
+        </div>
+        <input type="hidden" id="unemployment">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field" id="f-file106">
+        <label><span class="req">*</span> ارفع ملف 106 الأساسي
+          <span class="hint">تحصل عليه من مشغلك أو من موقع مصلحة الضرائب</span>
+        </label>
+        <div class="file-area" onclick="document.getElementById('file-106').click()">
+          <input type="file" id="file-106" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="handleFile(this,'files-106')">
+          <div class="file-area-icon">📄</div>
+          <div class="file-area-text">اضغط لرفع ملف 106</div>
+          <div class="file-area-hint">PDF، JPG، PNG — حتى 10MB لكل ملف</div>
+        </div>
+        <div class="file-list" id="files-106"></div>
+        <div class="error-msg">يرجى رفع ملف 106</div>
+      </div>
+      <div class="divider"></div>
+      <div class="field">
+        <label>ملفات 106 إضافية <span style="color:var(--gray);font-weight:500">(إذا عملت في أكثر من مكان)</span></label>
+        <div class="file-area" onclick="document.getElementById('file-106-extra').click()">
+          <input type="file" id="file-106-extra" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="handleFile(this,'files-106-extra')">
+          <div class="file-area-icon">📎</div>
+          <div class="file-area-text">اضغط لرفع ملفات إضافية</div>
+          <div class="file-area-hint">اختياري — يمكنك رفع أكثر من ملف</div>
+        </div>
+        <div class="file-list" id="files-106-extra"></div>
+      </div>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-prev" onclick="goPrev(3)">→ السابق</button>
+      <button class="btn-next" onclick="goNext(3)">التالي ←</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: دخل التأمين -->
+  <div class="step" id="step4">
+    <div class="step-header">
+      <div class="step-badge">✦ الخطوة 4 من 7</div>
+      <h1 class="step-title">دخل من جهات أخرى</h1>
+      <p class="step-sub">أجب بصدق — هذه المبالغ قد تؤثر على حساب استرجاعك.</p>
+    </div>
+    <div class="card">
+
+      <div class="field">
+        <label>هل تلقيت دمي بيطلا (بطالة)؟</label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'bitula','نعم');toggleConditional('bitula-fields','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'bitula','لا');toggleConditional('bitula-fields','لا')">❌ لا</button>
+        </div>
+        <input type="hidden" id="bitula">
+        <div class="conditional" id="bitula-fields">
+          <div class="field">
+            <label>المبلغ التقريبي (بالشيكل)</label>
+            <input type="number" id="bitula-amount" placeholder="مثال: 8000">
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label>هل تلقيت دمي ليدا (إجازة ولادة)؟</label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'lida','نعم');toggleConditional('lida-fields','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'lida','لا');toggleConditional('lida-fields','لا')">❌ لا</button>
+        </div>
+        <input type="hidden" id="lida">
+        <div class="conditional" id="lida-fields">
+          <div class="field">
+            <label>المبلغ التقريبي (بالشيكل)</label>
+            <input type="number" id="lida-amount" placeholder="مثال: 15000">
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label>هل تلقيت مخصصات من بيطوح لئومي؟</label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'bituah','نعم');toggleConditional('bituah-fields','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'bituah','لا');toggleConditional('bituah-fields','لا')">❌ لا</button>
+        </div>
+        <input type="hidden" id="bituah">
+        <div class="conditional" id="bituah-fields">
+          <div class="field">
+            <label>نوع المخصص</label>
+            <input type="text" id="bituah-type" placeholder="مثال: مخصص أطفال، معاش عجز...">
+          </div>
+          <div class="field">
+            <label>المبلغ التقريبي السنوي (بالشيكل)</label>
+            <input type="number" id="bituah-amount" placeholder="مثال: 5000">
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label>هل لديك دخل إضافي؟
+          <span class="hint">عمل حر، إيجار، عمل خارج إسرائيل...</span>
+        </label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'extra-income','نعم');toggleConditional('extra-income-fields','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'extra-income','لا');toggleConditional('extra-income-fields','لا')">❌ لا</button>
+        </div>
+        <input type="hidden" id="extra-income">
+        <div class="conditional" id="extra-income-fields">
+          <div class="field">
+            <label>نوع الدخل الإضافي</label>
+            <input type="text" id="extra-income-type" placeholder="اذكر نوع الدخل">
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="nav-btns">
+      <button class="btn-prev" onclick="goPrev(4)">→ السابق</button>
+      <button class="btn-next" onclick="goNext(4)">التالي ←</button>
+    </div>
+  </div>
+
+  <!-- STEP 5: أمور تزيد الاسترجاع -->
+  <div class="step" id="step5">
+    <div class="step-header">
+      <div class="step-badge">✦ الخطوة 5 من 7</div>
+      <h1 class="step-title">أمور قد تزيد من استرجاعك</h1>
+      <p class="step-sub">هذه العوامل قد تضيف نقاط استحقاق إضافية لصالحك.</p>
+    </div>
+    <div class="card">
+      <div class="field">
+        <label>هل تبرعت لمؤسسات معترف بها هذه السنة؟</label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'donation','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'donation','لا')">❌ لا</button>
+        </div>
+        <input type="hidden" id="donation">
+      </div>
+      <div class="divider"></div>
+      <div class="field">
+        <label>هل أنهيت دراسة أكاديمية أو دورة مهنية معترفة؟</label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'education','نعم');toggleConditional('education-fields','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'education','لا');toggleConditional('education-fields','لا')">❌ لا</button>
+        </div>
+        <input type="hidden" id="education">
+        <div class="conditional" id="education-fields">
+          <div class="field">
+            <label>في أي سنة أنهيت الدراسة؟</label>
+            <input type="number" id="education-year" placeholder="مثال: 2022" min="2000" max="2025">
+          </div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="field">
+        <label>هل تسكن في منطقة ذات امتيازات ضريبية؟</label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'zone','نعم');toggleConditional('zone-fields','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'zone','لا');toggleConditional('zone-fields','لا')">❌ لا</button>
+        </div>
+        <input type="hidden" id="zone">
+        <div class="conditional" id="zone-fields">
+          <div class="field">
+            <label>اسم البلدة أو المدينة</label>
+            <input type="text" id="zone-city" placeholder="مثال: عرابة، سخنين، دالية...">
+          </div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="field">
+        <label>هل لديك وضع صحي خاص أو إعاقة معترف بها؟</label>
+        <div class="yn-group">
+          <button class="yn-btn yes" onclick="selectYN(this,'health','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'health','لا')">❌ لا</button>
+        </div>
+        <input type="hidden" id="health">
+      </div>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-prev" onclick="goPrev(5)">→ السابق</button>
+      <button class="btn-next" onclick="goNext(5)">التالي ←</button>
+    </div>
+  </div>
+
+  <!-- STEP 6: رفع المستندات -->
+  <div class="step" id="step6">
+    <div class="step-header">
+      <div class="step-badge">✦ الخطوة 6 من 7</div>
+      <h1 class="step-title">رفع المستندات الإضافية</h1>
+      <p class="step-sub">ارفع أي مستندات إضافية تتعلق بطلبك. كلها اختيارية.</p>
+    </div>
+
+    <div class="card" style="background:rgba(15,37,68,0.03);border-color:rgba(15,37,68,0.1)">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:20px">🔒</span>
+        <p style="font-size:13px;color:var(--gray);line-height:1.7">
+          <strong style="color:var(--navy)">سرية تامة:</strong> ملفاتك تُحفظ بشكل آمن وتُستخدم فقط لغرض فحص الاسترجاع الضريبي.
+          الأنواع المسموحة: PDF، JPG، PNG. الحجم الأقصى: 10MB لكل ملف.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label>مستندات التأمين الوطني <span style="color:var(--gray);font-weight:500">(اختياري)</span></label>
+        <div class="file-area" onclick="document.getElementById('file-bituah').click()">
+          <input type="file" id="file-bituah" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="handleFile(this,'files-bituah')">
+          <div class="file-area-icon">📋</div>
+          <div class="file-area-text">رفع مستندات التأمين الوطني</div>
+          <div class="file-area-hint">PDF، JPG، PNG</div>
+        </div>
+        <div class="file-list" id="files-bituah"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="field">
+        <label>مستندات التبرعات <span style="color:var(--gray);font-weight:500">(اختياري)</span></label>
+        <div class="file-area" onclick="document.getElementById('file-donations').click()">
+          <input type="file" id="file-donations" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="handleFile(this,'files-donations')">
+          <div class="file-area-icon">🧾</div>
+          <div class="file-area-text">رفع إيصالات التبرعات</div>
+          <div class="file-area-hint">PDF، JPG، PNG</div>
+        </div>
+        <div class="file-list" id="files-donations"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="field">
+        <label>مستندات إضافية أخرى <span style="color:var(--gray);font-weight:500">(اختياري)</span></label>
+        <div class="file-area" onclick="document.getElementById('file-other').click()">
+          <input type="file" id="file-other" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="handleFile(this,'files-other')">
+          <div class="file-area-icon">📁</div>
+          <div class="file-area-text">رفع مستندات إضافية</div>
+          <div class="file-area-hint">أي مستند تعتقد أنه مهم</div>
+        </div>
+        <div class="file-list" id="files-other"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="privacy-box" id="privacy-box" onclick="togglePrivacy()">
+        <div class="check-box" id="privacy-check"></div>
+        <p>أوافق على استخدام بياناتي الشخصية ومستنداتي لغرض فحص الاسترجاع الضريبي فقط، وفقاً لسياسة الخصوصية الخاصة بمكتب المحاسب مصطفى محاميد.</p>
+      </div>
+    </div>
+
+    <div class="nav-btns">
+      <button class="btn-prev" onclick="goPrev(6)">→ السابق</button>
+      <button class="btn-next" onclick="goNext(6)">عرض النتيجة ✨</button>
+    </div>
+  </div>
+
+  <!-- STEP 7: النتيجة -->
+  <div class="step" id="step7">
+    <div class="step-header">
+      <div class="step-badge">✦ النتيجة التقديرية</div>
+      <h1 class="step-title">نتيجة الفحص الأولية</h1>
+    </div>
+
+    <div id="result-display"></div>
+
+    <div class="result-disclaimer">
+      ⚠️ <strong>تنبيه مهم:</strong> هذه النتيجة تقديرية أولية فقط وليست نتيجة نهائية أو التزاماً بمبلغ محدد. يتم التأكيد النهائي بعد مراجعة كاملة لجميع المستندات من قبل المحاسب مصطفى محاميد.
+    </div>
+
+    <div class="card">
+      <div class="result-btns">
+        <button class="btn-submit" onclick="submitForm()">✅ إرسال الطلب للمراجعة</button>
+        <a href="https://wa.me/972500000000" class="btn-wa" target="_blank">
+          <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+          تواصل معنا عبر واتساب
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-btns">
+      <button class="btn-prev" onclick="goPrev(7)">→ تعديل الإجابات</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- SUCCESS PAGE -->
+<div class="success-page" id="successPage">
+  <div class="success-icon">🎉</div>
+  <h2 class="success-title">تم إرسال طلبك بنجاح!</h2>
+  <p class="success-text">تلقينا جميع معلوماتك ومستنداتك.<br>سيتواصل معك المحاسب مصطفى محاميد خلال يومي عمل.</p>
+  <div class="success-card">
+    <h3>📋 ملخص طلبك</h3>
+    <div class="success-detail">📛 الاسم: <strong id="s-name">—</strong></div>
+    <div class="success-detail">📞 الهاتف: <strong id="s-phone">—</strong></div>
+    <div class="success-detail">📅 السنة المطلوبة: <strong id="s-year">—</strong></div>
+    <div class="success-detail">💰 التقدير الأولي: <strong id="s-result">—</strong></div>
+  </div>
+  <a href="https://wa.me/972500000000" class="btn-wa" style="display:flex;max-width:400px;margin:0 auto;text-decoration:none">
+    <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+    تواصل معنا عبر واتساب
+  </a>
+</div>
+
+<!-- WHATSAPP FLOAT -->
+<a href="https://wa.me/972500000000" class="wa-float" target="_blank">
+  <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+</a>
+
+<script>
+let currentStep = 1;
+const totalSteps = 7;
+let privacyAccepted = false;
+
+const stepNames = ['المعلومات الشخصية','الحالة العائلية','دخل العمل','دخل جهات أخرى','عوامل إضافية','المستندات','النتيجة'];
+
+// INIT DOTS
+function initDots() {
+  const dots = document.getElementById('stepsDots');
+  for (let i = 1; i <= totalSteps; i++) {
+    const d = document.createElement('div');
+    d.className = 'step-dot' + (i === 1 ? ' active' : '');
+    d.onclick = () => { if(i < currentStep) goToStep(i); };
+    dots.appendChild(d);
+  }
+}
+initDots();
+
+function updateProgress() {
+  const pct = (currentStep / totalSteps) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = `الخطوة ${currentStep} من ${totalSteps}`;
+  document.getElementById('progressCount').textContent = stepNames[currentStep - 1];
+  document.querySelectorAll('.step-dot').forEach((d, i) => {
+    d.classList.remove('active', 'done');
+    if (i + 1 === currentStep) d.classList.add('active');
+    else if (i + 1 < currentStep) d.classList.add('done');
+  });
+}
+
+function goToStep(n) {
+  document.getElementById('step' + currentStep).classList.remove('active');
+  currentStep = n;
+  document.getElementById('step' + currentStep).classList.add('active');
+  updateProgress();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function goNext(from) {
+  if (!validateStep(from)) return;
+  if (from === 6) calculateResult();
+  goToStep(from + 1);
+}
+
+function goPrev(from) {
+  goToStep(from - 1);
+}
+
+// VALIDATION
+function validateStep(step) {
+  let valid = true;
+  if (step === 1) {
+    const name = document.getElementById('name').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const birth = document.getElementById('birthyear').value;
+    setFieldError('f-name', !name);
+    setFieldError('f-phone', !phone);
+    setFieldError('f-birthyear', !birth || birth < 1940 || birth > 2005);
+    valid = name && phone && birth && birth >= 1940 && birth <= 2005;
+  }
+  if (step === 3) {
+    const files = document.getElementById('files-106').children.length;
+    setFieldError('f-file106', files === 0);
+    valid = files > 0;
+    if (!valid) alert('يرجى رفع ملف 106 قبل المتابعة');
+  }
+  if (step === 6) {
+    if (!privacyAccepted) {
+      alert('يرجى الموافقة على سياسة الخصوصية للمتابعة');
+      return false;
+    }
+  }
+  return valid;
+}
+
+function setFieldError(id, hasError) {
+  const f = document.getElementById(id);
+  if (!f) return;
+  if (hasError) f.classList.add('has-error');
+  else f.classList.remove('has-error');
+}
+
+// CALCULATE RESULT
+function calculateResult() {
+  let score = 0;
+  const employers = document.getElementById('employers').value;
+  if (employers === '2') score += 2;
+  if (employers === '3+') score += 3;
+  if (document.getElementById('unemployment').value === 'نعم') score += 2;
+  if (document.getElementById('partial-year').value === 'نعم') score += 1;
+  if (document.getElementById('bitula').value === 'نعم') score += 2;
+  if (document.getElementById('lida').value === 'نعم') score += 1;
+  if (document.getElementById('child-under18').value === 'نعم') score += 1;
+  if (document.getElementById('special-need').value === 'نعم') score += 1;
+  if (document.getElementById('divorce').value === 'نعم') score += 1;
+  if (document.getElementById('donation').value === 'نعم') score += 1;
+  if (document.getElementById('zone').value === 'نعم') score += 1;
+  if (document.getElementById('health').value === 'نعم') score += 1;
+  if (document.getElementById('education').value === 'نعم') score += 1;
+
+  let html = '';
+  let resultText = '';
+
+  if (score <= 2) {
+    resultText = 'احتمال منخفض — 0 إلى 1,500 ₪';
+    html = `<div class="result-card low">
+      <div class="result-icon">🔵</div>
+      <div class="result-title">احتمال منخفض للاسترجاع</div>
+      <div class="result-amount">0 — 1,500 ₪</div>
+      <p class="result-text">بناءً على المعطيات الحالية، احتمال الاسترجاع محدود نسبياً. لكن المراجعة الدقيقة مع المستندات قد تكشف عن استحقاق لم يظهر في النموذج.</p>
+    </div>`;
+  } else if (score <= 5) {
+    resultText = 'احتمال متوسط — 1,500 إلى 4,500 ₪';
+    html = `<div class="result-card medium">
+      <div class="result-icon">🟡</div>
+      <div class="result-title">احتمال متوسط للاسترجاع</div>
+      <div class="result-amount">1,500 — 4,500 ₪</div>
+      <p class="result-text">تشير المعطيات إلى احتمال جيد لوجود استرجاع ضريبي. ننصح بمراجعة كاملة للملف — من المهم متابعة هذا الطلب.</p>
+    </div>`;
+  } else {
+    resultText = 'احتمال مرتفع — 3,000 إلى 8,000+ ₪';
+    html = `<div class="result-card high">
+      <div class="result-icon">🟢</div>
+      <div class="result-title">احتمال مرتفع للاسترجاع!</div>
+      <div class="result-amount">3,000 — 8,000+ ₪</div>
+      <p class="result-text">المعطيات تشير إلى احتمال مرتفع جداً لوجود استرجاع ضريبي. من المهم جداً متابعة هذا الملف — لا تترك مبلغاً مستحقاً بدون مطالبة.</p>
+    </div>`;
+  }
+
+  document.getElementById('result-display').innerHTML = html;
+  window._resultText = resultText;
+}
+
+// SUBMIT
+function submitForm() {
+  document.getElementById('mainForm').style.display = 'none';
+  document.getElementById('progressWrap').style.display = 'none';
+  const sp = document.getElementById('successPage');
+  sp.classList.add('show');
+  document.getElementById('s-name').textContent = document.getElementById('name').value || '—';
+  document.getElementById('s-phone').textContent = document.getElementById('phone').value || '—';
+  document.getElementById('s-year').textContent = document.getElementById('check-year').value || '—';
+  document.getElementById('s-result').textContent = window._resultText || '—';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// STATUS CHANGE — hide children section if single
+function onStatusChange(val) {
+  const sec = document.getElementById('children-section');
+  if (val === 'أعزب/عزباء') {
+    sec.style.display = 'none';
+    document.getElementById('child-under18').value = 'لا';
+    document.getElementById('children').value = '0';
+  } else {
+    sec.style.display = 'block';
+  }
+}
+
+// RENDER CHILD BIRTH YEAR FIELDS
+function renderChildFields(count) {
+  const container = document.getElementById('children-birth-fields');
+  container.innerHTML = '';
+  for (let i = 1; i <= count; i++) {
+    container.innerHTML += `
+      <div class="field" style="margin-top:12px">
+        <label>سنة ميلاد الولد/البنت رقم ${i}</label>
+        <input type="number" id="child-birth-${i}" placeholder="مثال: 2015" min="1990" max="2025"
+          style="width:100%;padding:11px 14px;border:1.5px solid var(--gray-light);border-radius:10px;
+          font-family:Cairo,sans-serif;font-size:14px;color:var(--text);background:var(--off-white);
+          outline:none;direction:rtl;">
+      </div>`;
+  }
+}
+
+// YN SELECT
+function selectYN(btn, fieldId, val) {
+  const group = btn.closest('.yn-group');
+  group.querySelectorAll('.yn-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById(fieldId).value = val;
+}
+
+// RADIO SELECT
+function selectRadio(el, fieldId, val) {
+  const group = el.closest('.radio-group');
+  group.querySelectorAll('.radio-item').forEach(r => r.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById(fieldId).value = val;
+}
+
+// CONDITIONAL
+function toggleConditional(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (val === 'نعم') el.classList.add('show');
+  else el.classList.remove('show');
+}
+
+// PRIVACY
+function togglePrivacy() {
+  privacyAccepted = !privacyAccepted;
+  const box = document.getElementById('privacy-box');
+  const check = document.getElementById('privacy-check');
+  if (privacyAccepted) {
+    box.classList.add('selected');
+    check.style.borderColor = 'var(--navy)';
+    check.style.background = 'var(--navy)';
+    check.textContent = '✓';
+    check.style.color = 'white';
+    check.style.fontSize = '11px';
+    check.style.display = 'flex';
+    check.style.alignItems = 'center';
+    check.style.justifyContent = 'center';
+  } else {
+    box.classList.remove('selected');
+    check.style.borderColor = '';
+    check.style.background = '';
+    check.textContent = '';
+  }
+}
+
+// FILE UPLOAD
+function handleFile(input, listId) {
+  const list = document.getElementById(listId);
+  Array.from(input.files).forEach(file => {
+    const tag = document.createElement('div');
+    tag.className = 'file-tag';
+    tag.innerHTML = `<span>📄</span><span>${file.name}</span><button class="file-tag-remove" onclick="this.parentElement.remove()">✕</button>`;
+    list.appendChild(tag);
+  });
+  input.value = '';
+}
+
+updateProgress();
+</script>
+</body>
+</html>
