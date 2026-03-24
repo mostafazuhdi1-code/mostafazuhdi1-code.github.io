@@ -1344,7 +1344,16 @@ async function analyze106(input, cardId) {
       throw new Error('HTTP ' + resp.status + ': ' + errText.substring(0, 200));
     }
     const data = await resp.json();
-    const text = data.content.map(c=>c.text||'').join('');
+
+    // Handle different response formats
+    let text = '';
+    if (data.content && Array.isArray(data.content)) {
+      text = data.content.map(c=>c.text||'').join('');
+    } else if (data.error) {
+      throw new Error(JSON.stringify(data.error));
+    } else {
+      throw new Error('unexpected response: ' + JSON.stringify(data).substring(0,200));
+    }
     const result = JSON.parse(text.replace(/```json|```/g,'').trim());
     window._extracted106 = window._extracted106 || {grossIncome:0,taxDeducted:0};
     if (result.grossIncome) window._extracted106.grossIncome += Number(result.grossIncome);
