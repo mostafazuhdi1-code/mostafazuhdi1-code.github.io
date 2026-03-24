@@ -987,10 +987,21 @@ function validateStep(step) {
     valid = name && phone && birth && birth >= 1940 && birth <= 2005;
   }
   if (step === 3) {
-    const files = document.getElementById('files-106').children.length;
-    setFieldError('f-file106', files === 0);
-    valid = files > 0;
-    if (!valid) alert('يرجى رفع ملف 106 قبل المتابعة');
+    if (selectedYears.length === 0) {
+      alert('يرجى اختيار سنة واحدة على الأقل');
+      return false;
+    }
+    for (const year of selectedYears) {
+      const emp = document.getElementById(`employers-val-${year}`)?.value;
+      if (!emp) { alert(`يرجى تحديد عدد أماكن العمل لسنة ${year}`); return false; }
+      const count = emp === '3+' ? 3 : parseInt(emp);
+      for (let i = 1; i <= count; i++) {
+        const fl = document.getElementById(`files-106-${year}-${i}`);
+        if (!fl || fl.children.length === 0) { alert(`يرجى رفع ملف 106 لسنة ${year}`); return false; }
+      }
+    }
+    const cy = document.getElementById('check-year');
+    if (cy) cy.value = selectedYears.join(',');
   }
   if (step === 6) {
     if (!privacyAccepted) {
@@ -1214,57 +1225,7 @@ function updateFileCount(year, count) {
   }
 }
 
-// Override validateStep for step 3
-const _origValidate = validateStep;
-validateStep = function(step) {
-  if (step === 3) {
-    if (selectedYears.length === 0) {
-      alert('يرجى اختيار سنة واحدة على الأقل');
-      return false;
-    }
-    // Check each year has employer count set and files uploaded
-    for (const year of selectedYears) {
-      const emp = document.getElementById(`employers-val-${year}`)?.value;
-      if (!emp) {
-        alert(`يرجى تحديد عدد أماكن العمل لسنة ${year}`);
-        return false;
-      }
-      const count = emp === '3+' ? 3 : parseInt(emp);
-      for (let i = 1; i <= count; i++) {
-        const fileList = document.getElementById(`files-106-${year}-${i}`);
-        if (!fileList || fileList.children.length === 0) {
-          alert(`يرجى رفع ملف 106 لسنة ${year}`);
-          return false;
-        }
-      }
-    }
-    // update check-year for backward compat
-    document.getElementById('check-year') && (document.getElementById('check-year').value = selectedYears.join(','));
-    return true;
-  }
-  return _origValidate(step);
-};
-
-// Update score calculation to handle multi-employer across years
-const _origCalc = calculateResult;
-calculateResult = function() {
-  // count total employers across years for scoring
-  let maxEmployers = 1;
-  for (const year of selectedYears) {
-    const emp = document.getElementById(`employers-val-${year}`)?.value;
-    if (emp === '3+') maxEmployers = Math.max(maxEmployers, 3);
-    else if (emp) maxEmployers = Math.max(maxEmployers, parseInt(emp));
-  }
-  // temporarily set employers value for score
-  if (!document.getElementById('employers')) {
-    const h = document.createElement('input');
-    h.type = 'hidden'; h.id = 'employers'; h.value = maxEmployers >= 3 ? '3+' : String(maxEmployers);
-    document.body.appendChild(h);
-  } else {
-    document.getElementById('employers').value = maxEmployers >= 3 ? '3+' : String(maxEmployers);
-  }
-  _origCalc();
-};
+// Validation for step 3 — integrated into validateStep below
 
 // STATUS CHANGE — hide children section if single
 function onStatusChange(val) {
@@ -1618,145 +1579,6 @@ function calculateResult() {
         ${refundBoostFactors.map(f => `<p style="font-size:12px;color:#78350F;margin-bottom:3px">• ${f}</p>`).join('')}
       </div>` : ''}
     </div>`;
-
-  const html = `<div class="result-card ${level}">
-    <div class="result-icon">${icons[level]}</div>
-    <div class="result-title">${titles[level]}</div>
-    <div class="result-amount">${amountText}</div>
-    <p class="result-text">${texts[level]}</p>
-    ${detailsHTML}
-  </div>`;
-
-  document.getElementById('result-display').innerHTML = html;
-  window._resultText = resultText;
-}
-  let points = 2.25; // base points — everyone gets 2.25
-  const details = [];
-
-  // --- EMPLOYERS across years ---
-  let multiEmployer = false;
-  let totalYears = selectedYears.length;
-  for (const year of selectedYears) {
-    const emp = document.getElementById(`employers-val-${year}`)?.value;
-    if (emp === '2' || emp === '3+') { multiEmployer = true; break; }
-  }
-  if (multiEmployer) {
-    points += 1;
-    details.push({ label: 'أكثر من مشغّل في سنة واحدة', points: '+1', reason: 'احتمال عدم تنسيق ضريبي صحيح' });
-  }
-  if (totalYears >= 3) {
-    points += 0.5;
-    details.push({ label: `فحص ${totalYears} سنوات`, points: '+0.5', reason: 'فرصة أعلى للاسترجاع على مدى سنوات' });
-  }
-
-  // --- UNEMPLOYMENT / PARTIAL ---
-  if (document.getElementById('unemployment').value === 'نعم') {
-    points += 1.5;
-    details.push({ label: 'فترة بطالة أو توقف عن العمل', points: '+1.5', reason: 'قد لا تُحسب خصومات الضريبة بشكل صحيح' });
-  }
-  if (document.getElementById('partial-year').value === 'نعم') {
-    points += 0.5;
-    details.push({ label: 'عمل جزء من السنة فقط', points: '+0.5', reason: 'احتمال دفع ضريبة زائدة' });
-  }
-
-  // --- FAMILY ---
-  const married = document.getElementById('married').value === 'نعم';
-  const spouseWorks = document.getElementById('spouse-works').value === 'نعم';
-  if (married && spouseWorks) {
-    points += 1;
-    details.push({ label: 'زوج/زوجة يعمل/تعمل أيضاً', points: '+1', reason: 'نقاط זיכוי مشتركة للزوجين' });
-  }
-
-  // CHILDREN
-  const childCount = parseInt(document.getElementById('children').value) || 0;
-  if (childCount >= 1) {
-    const childPoints = Math.min(childCount * 0.5, 2.5);
-    points += childPoints;
-    details.push({ label: `${childCount} أولاد دون سن 18`, points: `+${childPoints}`, reason: 'نقطة زيכוי لكل طفل مؤهّل' });
-  }
-  if (document.getElementById('special-need').value === 'نعم') {
-    points += 1.5;
-    details.push({ label: 'فرد باستحقاق خاص (إعاقة / ADHD)', points: '+1.5', reason: 'نقاط זיכוי إضافية للحالات الخاصة' });
-  }
-  if (document.getElementById('divorce').value === 'نعم') {
-    points += 1;
-    details.push({ label: 'طلاق أو نفقة', points: '+1', reason: 'استحقاقات ضريبية خاصة للمطلقين' });
-  }
-
-  // --- BITUAH LEUMI ---
-  if (document.getElementById('bitula').value === 'نعم') {
-    points += 1.5;
-    details.push({ label: 'دمي בيטלה (بطالة)', points: '+1.5', reason: 'قد تكون الضريبة محسوبة بشكل خاطئ' });
-  }
-  if (document.getElementById('lida').value === 'نعم') {
-    points += 1;
-    details.push({ label: 'דמי לידה (إجازة ولادة)', points: '+1', reason: 'استحقاق ضريبي خاص بإجازة الأمومة' });
-  }
-  if (document.getElementById('bituah').value === 'نعم') {
-    points += 0.5;
-    details.push({ label: 'مخصصات בيטוח לאומי', points: '+0.5', reason: 'قد تؤثر على حساب الاسترجاع' });
-  }
-
-  // --- STEP 5 ---
-  if (document.getElementById('donation').value === 'نعم') {
-    points += 0.5;
-    details.push({ label: 'تبرعات لمؤسسات معترف بها', points: '+0.5', reason: 'تخفيض ضريبي على التبرعات' });
-  }
-  if (document.getElementById('education').value === 'نعم') {
-    points += 1;
-    details.push({ label: 'شهادة أكاديمية أو دورة مهنية', points: '+1', reason: 'נקודת זיכוי إضافية للتعليم' });
-  }
-  if (document.getElementById('zone').value === 'نعم') {
-    points += 1;
-    details.push({ label: 'سكن في منطقة ذات امتيازات', points: '+1', reason: 'نقاط זיכוי جغرافية' });
-  }
-  if (document.getElementById('health').value === 'نعم') {
-    points += 1.5;
-    details.push({ label: 'وضع صحي خاص أو إعاقة', points: '+1.5', reason: 'نقاط זיכוי للإعاقة المعترف بها' });
-  }
-
-  // --- ESTIMATE REFUND ---
-  // Each point ≈ 235 ₪/year (2024 rate), multiply by years
-  const pointValue = 235;
-  const estimatedPerYear = Math.round((points - 2.25) * pointValue);
-  const totalMin = Math.max(0, Math.round(estimatedPerYear * totalYears * 0.6));
-  const totalMax = Math.round(estimatedPerYear * totalYears * 1.4);
-
-  // --- SCORE FOR CARD COLOR ---
-  const extraPoints = points - 2.25;
-  let level = extraPoints <= 1 ? 'low' : extraPoints <= 3.5 ? 'medium' : 'high';
-  if (totalMin === 0) level = 'low';
-
-  const icons = { low: '🔵', medium: '🟡', high: '🟢' };
-  const titles = { low: 'احتمال منخفض للاسترجاع', medium: 'احتمال متوسط للاسترجاع', high: 'احتمال مرتفع للاسترجاع! ✨' };
-  const texts = {
-    low: 'بناءً على المعطيات الحالية، احتمال الاسترجاع محدود نسبياً. لكن المراجعة الدقيقة قد تكشف عن استحقاق لم يظهر هنا.',
-    medium: 'تشير المعطيات إلى احتمال جيد لوجود استرجاع ضريبي. ننصح بمراجعة كاملة للملف مع المحاسب.',
-    high: 'المعطيات تشير إلى احتمال مرتفع جداً لاسترجاع ضريبي. لا تترك هذا المبلغ دون مطالبة!'
-  };
-
-  const amountText = totalMin === 0
-    ? 'يحتاج مراجعة إضافية'
-    : `${totalMin.toLocaleString()} — ${totalMax.toLocaleString()} ₪`;
-
-  const resultText = `${titles[level]} — ${amountText}`;
-
-  // Build details table
-  const detailsHTML = details.length > 0 ? `
-    <div style="margin-top:16px;background:rgba(255,255,255,0.7);border-radius:10px;padding:14px;text-align:right">
-      <p style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">📊 العوامل التي أثّرت على النتيجة:</p>
-      ${details.map(d => `
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;
-          padding:7px 0;border-bottom:1px solid rgba(0,0,0,0.06);font-size:13px;gap:8px">
-          <span style="color:#374151;line-height:1.4">${d.label}<br>
-            <span style="font-size:11px;color:#9CA3AF">${d.reason}</span></span>
-          <span style="font-weight:800;color:var(--green);white-space:nowrap">${d.points}</span>
-        </div>`).join('')}
-      <div style="display:flex;justify-content:space-between;padding:10px 0 0;font-size:14px;font-weight:800;color:var(--navy)">
-        <span>مجموع نقاط הזיכוי المحسوبة</span>
-        <span>${points.toFixed(2)} נקודות</span>
-      </div>
-    </div>` : '';
 
   const html = `<div class="result-card ${level}">
     <div class="result-icon">${icons[level]}</div>
