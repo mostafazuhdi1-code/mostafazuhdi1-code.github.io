@@ -1335,8 +1335,8 @@ async function analyze106(input, cardId) {
     const content = isPDF
       ? [{type:'document',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]
       : [{type:'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}];
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+const resp = await fetch('https://analyze-106.mostafa-zuhdi1.workers.dev', {
+  method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content}]})
     });
     if (!resp.ok) throw new Error(resp.status);
