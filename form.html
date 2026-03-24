@@ -1339,7 +1339,10 @@ async function analyze106(input, cardId) {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content}]})
     });
-    if (!resp.ok) throw new Error(resp.status);
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error('HTTP ' + resp.status + ': ' + errText.substring(0, 200));
+    }
     const data = await resp.json();
     const text = data.content.map(c=>c.text||'').join('');
     const result = JSON.parse(text.replace(/```json|```/g,'').trim());
@@ -1348,7 +1351,9 @@ async function analyze106(input, cardId) {
     if (result.taxDeducted) window._extracted106.taxDeducted += Number(result.taxDeducted);
     renderAnalysisCard(card, result);
   } catch(err) {
-    card.innerHTML = '<div class="analysis-error">⚠️ تعذّر قراءة الملف تلقائياً — سيراجعه المحاسب يدوياً. يمكنك المتابعة.</div>';
+    console.error('106 error:', err);
+    // Try to get more details
+    card.innerHTML = '<div class="analysis-error">⚠️ خطأ: ' + (err.message || err) + '</div>';
   }
 }
 
