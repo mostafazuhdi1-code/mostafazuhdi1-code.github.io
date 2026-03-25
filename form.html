@@ -1046,44 +1046,130 @@ function setFieldError(id, hasError) {
 
 // SUBMIT
 async function submitForm() {
-  // Collect all data
-  const data = {
-    الاسم: document.getElementById('name').value,
-    الهاتف: document.getElementById('phone').value,
-    الإيميل: document.getElementById('email').value || '—',
-    الجنس: document.getElementById('gender').value,
-    سنة_الميلاد: document.getElementById('birthyear').value,
-    متزوج: document.getElementById('married').value,
-    اسم_الزوج: document.getElementById('spouse-name')?.value || '—',
-    السنوات_المفحوصة: selectedYears.join(', '),
-    النتيجة_التقديرية: window._resultText || '—',
-    دخل_106_إجمالي: window._extracted106?.grossIncome ? Math.round(window._extracted106.grossIncome).toLocaleString() + ' ₪' : '—',
-    ضريبة_مدفوعة: window._extracted106?.taxDeducted ? Math.round(window._extracted106.taxDeducted).toLocaleString() + ' ₪' : '—',
-    بطالة: document.getElementById('unemployment').value,
-    تبرعات: document.getElementById('donation').value,
-    وضع_صحي: document.getElementById('health').value,
-    منطقة_امتيازات: document.getElementById('zone').value,
-    اسم_المدينة: document.getElementById('zone-city')?.value || '—',
-    نسبة_تخفيض_المنطقة: window._zoneDiscount ? window._zoneDiscount + '%' : '—',
-    تاريخ_الإرسال: new Date().toLocaleString('he-IL'),
+  const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwBk79Uv2Md2kUE7N82PwEeQiTulULFpnIJIV0jcREXUH7P1oTSIzTRUT9B19Z5Kib0/exec';
+
+  // Show loading state on button
+  const btn = document.querySelector('.btn-submit');
+  if (btn) { btn.textContent = '⏳ جارٍ الإرسال...'; btn.disabled = true; }
+
+  // ── Collect all uploaded files ──
+  async function collectFiles() {
+    const files = [];
+    const fileInputIds = [];
+
+    // Collect all file-list divs that have files
+    document.querySelectorAll('[id^="files-"]').forEach(list => {
+      const inputId = list.id.replace('files-', 'file-');
+      const input = document.getElementById(inputId);
+      if (input && input.files && input.files.length > 0) {
+        fileInputIds.push(inputId);
+      }
+    });
+
+    // Also check stored file objects
+    for (const listEl of document.querySelectorAll('[id^="files-"]')) {
+      const tags = listEl.querySelectorAll('.file-tag');
+      tags.forEach(tag => {
+        const nameEl = tag.querySelector('span:nth-child(2)');
+        if (nameEl) {
+          const name = nameEl.textContent;
+          const sectionId = listEl.id;
+          // Mark file with its section name
+          if (!files.find(f => f.name === name)) {
+            files.push({ name, section: sectionId, data: null, type: 'application/octet-stream' });
+          }
+        }
+      });
+    }
+
+    // Convert actual file inputs to base64
+    const result = [];
+    for (const inputId of fileInputIds) {
+      const input = document.getElementById(inputId);
+      if (!input || !input.files) continue;
+      for (const file of input.files) {
+        try {
+          const base64 = await fileToBase64(file);
+          result.push({
+            name: file.name,
+            type: file.type || 'application/octet-stream',
+            data: base64,
+            section: inputId
+          });
+        } catch(e) { console.log('file error:', e); }
+      }
+    }
+    return result;
+  }
+
+  // ── Collect form data ──
+  const idNumber = window._extracted106?.idNumber ||
+                   document.getElementById('idnumber')?.value || 'unknown';
+  const clientName = document.getElementById('name').value;
+
+  const formData = {
+    // Identity
+    name: clientName,
+    idNumber: idNumber,
+    phone: document.getElementById('phone').value,
+    email: document.getElementById('email').value || '—',
+    gender: document.getElementById('gender').value,
+    birthYear: document.getElementById('birthyear').value,
+    // Marriage
+    married: document.getElementById('married').value,
+    spouseName: document.getElementById('spouse-name')?.value || '—',
+    marriageYear: document.getElementById('marriage-year')?.value || '—',
+    spouseWorks: document.getElementById('spouse-works')?.value || '—',
+    // Work
+    years: selectedYears.join(', '),
+    // 106 extracted data
+    employer: window._form106Data ? Object.values(window._form106Data).map(d=>d.employer).filter(Boolean).join(', ') : '—',
+    grossIncome: window._extracted106?.grossIncome ? Math.round(window._extracted106.grossIncome).toLocaleString() + ' ₪' : '—',
+    taxDeducted: window._extracted106?.taxDeducted ? Math.round(window._extracted106.taxDeducted).toLocaleString() + ' ₪' : '—',
+    workMonths: window._extracted106?.workMonths || '—',
+    creditPoints: window._extracted106?.creditPoints || '—',
+    // Step 4
+    unemployment: document.getElementById('unemployment').value,
+    bitula: document.getElementById('bitula').value,
+    lida: document.getElementById('lida').value,
+    bituah: document.getElementById('bituah').value,
+    // Step 5
+    donation: document.getElementById('donation').value,
+    health: document.getElementById('health').value,
+    education: document.getElementById('education').value,
+    educationYear: document.getElementById('education-year')?.value || '—',
+    zone: document.getElementById('zone').value,
+    zoneCity: document.getElementById('zone-city')?.value || '—',
+    zoneDiscount: window._zoneDiscount ? window._zoneDiscount + '%' : '—',
+    // Result
+    result: window._resultText || '—',
+    submittedAt: new Date().toLocaleString('he-IL'),
   };
 
-  // Send to Formspree (replace with your Formspree URL)
-  try {
-    await fetch('https://formspree.io/f/mojkgavy', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
-    });
-  } catch(e) { console.log('Formspree error:', e); }
+  // ── Collect files ──
+  let files = [];
+  try { files = await collectFiles(); } catch(e) { console.log('collect error:', e); }
 
-  // Show success page
+  // ── Send to Google Apps Script ──
+  try {
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ ...formData, files })
+    });
+    const result = await response.json();
+    console.log('Drive result:', result);
+  } catch(e) {
+    console.log('Drive error:', e);
+    // Continue anyway — show success to user
+  }
+
+  // ── Show success page ──
   document.getElementById('mainForm').style.display = 'none';
   document.getElementById('progressWrap').style.display = 'none';
   const sp = document.getElementById('successPage');
   sp.classList.add('show');
-  document.getElementById('s-name').textContent = data.الاسم || '—';
-  document.getElementById('s-phone').textContent = data.الهاتف || '—';
+  document.getElementById('s-name').textContent = clientName || '—';
+  document.getElementById('s-phone').textContent = formData.phone || '—';
   document.getElementById('s-year').textContent = selectedYears.join(', ') || '—';
   document.getElementById('s-result').textContent = window._resultText || '—';
   window.scrollTo({top: 0, behavior: 'smooth'});
@@ -1387,7 +1473,7 @@ async function analyze106(input, cardId) {
     const base64 = await fileToBase64(file);
     const isPDF = file.type === 'application/pdf';
     const mediaType = isPDF ? 'application/pdf' : file.type;
-    const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\nחפש: שדה 158/172 הכנסה ברוטו, שדה 042 מס הכנסה שנוכה, שדה 045 הפרשת עובד לפנסיה, שדה 246 הפרשת מעביד, שדה 048 ביטוח לאומי, שם מעסיק, שנת מס, חודשי עבודה, נקודות זיכוי.\nהחזר מספרים כמספרים בלבד ללא פסיקים (לדוגמה: 350994 ולא 350,994). JSON בלבד: {"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"employeePension":null,"employerPension":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"notes":null}';
+    const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\nחפש: שדה 158/172 הכנסה ברוטו, שדה 042 מס הכנסה שנוכה, שדה 045 הפרשת עובד לפנסיה, שדה 246 הפרשת מעביד, שדה 048 ביטוח לאומי, שם מעסיק, שנת מס, חודשי עבודה, נקודות זיכוי, מספר זהות של העובד.\nהחזר מספרים כמספרים בלבד ללא פסיקים (לדוגמה: 350994 ולא 350,994). JSON בלבד: {"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"employeePension":null,"employerPension":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"idNumber":null,"notes":null}';
     const content = isPDF
       ? [{type:'document',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]
       : [{type:'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}];
@@ -1413,8 +1499,12 @@ async function analyze106(input, cardId) {
     const result = JSON.parse(text.replace(/```json|```/g,'').trim());
     window._extracted106 = window._extracted106 || {grossIncome:0,taxDeducted:0};
     const parseN = n => { if(!n) return 0; return parseFloat(String(n).replace(/,/g,'').replace(/[^0-9.]/g,'')) || 0; };
-    if (result.grossIncome) window._extracted106.grossIncome += parseN(result.grossIncome);
-    if (result.taxDeducted) window._extracted106.taxDeducted += parseN(result.taxDeducted);
+    if (result.grossIncome)  window._extracted106.grossIncome  += parseN(result.grossIncome);
+    if (result.taxDeducted)  window._extracted106.taxDeducted  += parseN(result.taxDeducted);
+    if (result.idNumber)     window._extracted106.idNumber      = result.idNumber;
+    if (result.workMonths)   window._extracted106.workMonths    = result.workMonths;
+    if (result.creditPoints) window._extracted106.creditPoints  = result.creditPoints;
+    if (result.employer)     window._extracted106.employer      = result.employer;
     renderAnalysisCard(card, result);
     // Trigger unemployment question if < 12 months
     if (result.workMonths) checkUnemploymentFromFile(result.workMonths);
