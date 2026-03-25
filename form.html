@@ -621,21 +621,14 @@ body {
     <div id="year-cards-container"></div>
 
     <div class="card" id="general-questions-card" style="display:none">
-      <div class="field">
-        <label>هل عملت فقط جزءاً من إحدى السنوات؟</label>
-        <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'partial-year','نعم')">✅ نعم</button>
-          <button class="yn-btn no" onclick="selectYN(this,'partial-year','لا')">❌ لا</button>
-        </div>
-        <input type="hidden" id="partial-year">
-      </div>
-      <div class="field">
-        <label>هل كانت هناك فترات بطالة أو توقف عن العمل؟</label>
+<input type="hidden" id="partial-year" value="">
+      <div class="field" id="unemployment-field" style="display:none">
+        <label>⚠️ ملف 106 يُظهر أقل من 12 شهر عمل — هل كانت هناك فترات بطالة؟</label>
         <div class="yn-group">
           <button class="yn-btn yes" onclick="selectYN(this,'unemployment','نعم')">✅ نعم</button>
           <button class="yn-btn no" onclick="selectYN(this,'unemployment','لا')">❌ لا</button>
         </div>
-        <input type="hidden" id="unemployment">
+        <input type="hidden" id="unemployment" value="لا">
       </div>
     </div>
 
@@ -744,10 +737,24 @@ body {
       <div class="field">
         <label>هل تبرعت لمؤسسات معترف بها هذه السنة؟</label>
         <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'donation','نعم')">✅ نعم</button>
-          <button class="yn-btn no" onclick="selectYN(this,'donation','لا')">❌ لا</button>
+          <button class="yn-btn yes" onclick="selectYN(this,'donation','نعم');toggleConditional('donation-file','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'donation','لا');toggleConditional('donation-file','لا')">❌ لا</button>
         </div>
         <input type="hidden" id="donation">
+        <div class="conditional" id="donation-file">
+          <div class="field" style="margin-top:12px">
+            <label>ارفع إيصال التبرع (קבלה על תרומה)</label>
+            <div class="file-area">
+              <input type="file" id="file-donation-receipt" accept=".pdf,.jpg,.jpeg,.png"
+                style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%"
+                onchange="handleFile(this,'files-donation-receipt')">
+              <div class="file-area-icon">🧾</div>
+              <div class="file-area-text">ارفع إيصال التبرع</div>
+              <div class="file-area-hint">PDF، JPG، PNG</div>
+            </div>
+            <div class="file-list" id="files-donation-receipt"></div>
+          </div>
+        </div>
       </div>
       <div class="divider"></div>
       <div class="field">
@@ -786,7 +793,10 @@ body {
         <div class="conditional" id="zone-fields">
           <div class="field">
             <label>اسم البلدة أو المدينة</label>
-            <input type="text" id="zone-city" placeholder="مثال: عرابة، سخنين، دالية...">
+            <input type="text" id="zone-city" placeholder="مثال: عرابة، سخنين، دالية..."
+              oninput="lookupZoneDiscount(this.value)">
+            <div id="zone-discount-result" style="margin-top:8px;display:none;padding:10px 14px;
+              background:rgba(201,168,76,0.1);border-radius:8px;font-size:13px;color:#92400E;font-weight:600"></div>
           </div>
         </div>
       </div>
@@ -794,10 +804,24 @@ body {
       <div class="field">
         <label>هل لديك وضع صحي خاص أو إعاقة معترف بها؟</label>
         <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'health','نعم')">✅ نعم</button>
-          <button class="yn-btn no" onclick="selectYN(this,'health','لا')">❌ لا</button>
+          <button class="yn-btn yes" onclick="selectYN(this,'health','نعم');toggleConditional('health-file','نعم')">✅ نعم</button>
+          <button class="yn-btn no" onclick="selectYN(this,'health','لا');toggleConditional('health-file','لا')">❌ لا</button>
         </div>
         <input type="hidden" id="health">
+        <div class="conditional" id="health-file">
+          <div class="field" style="margin-top:12px">
+            <label>ارفع وثيقة الإعاقة من التأمين الوطني (אישור נכות מביטוח לאומי)</label>
+            <div class="file-area">
+              <input type="file" id="file-health-doc" accept=".pdf,.jpg,.jpeg,.png"
+                style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%"
+                onchange="handleFile(this,'files-health-doc')">
+              <div class="file-area-icon">📋</div>
+              <div class="file-area-text">ارفع وثيقة التأمين الوطني</div>
+              <div class="file-area-hint">PDF، JPG، PNG</div>
+            </div>
+            <div class="file-list" id="files-health-doc"></div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="nav-btns">
@@ -1021,14 +1045,46 @@ function setFieldError(id, hasError) {
 
 
 // SUBMIT
-function submitForm() {
+async function submitForm() {
+  // Collect all data
+  const data = {
+    الاسم: document.getElementById('name').value,
+    الهاتف: document.getElementById('phone').value,
+    الإيميل: document.getElementById('email').value || '—',
+    الجنس: document.getElementById('gender').value,
+    سنة_الميلاد: document.getElementById('birthyear').value,
+    متزوج: document.getElementById('married').value,
+    اسم_الزوج: document.getElementById('spouse-name')?.value || '—',
+    السنوات_المفحوصة: selectedYears.join(', '),
+    النتيجة_التقديرية: window._resultText || '—',
+    دخل_106_إجمالي: window._extracted106?.grossIncome ? Math.round(window._extracted106.grossIncome).toLocaleString() + ' ₪' : '—',
+    ضريبة_مدفوعة: window._extracted106?.taxDeducted ? Math.round(window._extracted106.taxDeducted).toLocaleString() + ' ₪' : '—',
+    بطالة: document.getElementById('unemployment').value,
+    تبرعات: document.getElementById('donation').value,
+    وضع_صحي: document.getElementById('health').value,
+    منطقة_امتيازات: document.getElementById('zone').value,
+    اسم_المدينة: document.getElementById('zone-city')?.value || '—',
+    نسبة_تخفيض_المنطقة: window._zoneDiscount ? window._zoneDiscount + '%' : '—',
+    تاريخ_الإرسال: new Date().toLocaleString('he-IL'),
+  };
+
+  // Send to Formspree (replace with your Formspree URL)
+  try {
+    await fetch('https://formspree.io/f/mojkgavy', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+  } catch(e) { console.log('Formspree error:', e); }
+
+  // Show success page
   document.getElementById('mainForm').style.display = 'none';
   document.getElementById('progressWrap').style.display = 'none';
   const sp = document.getElementById('successPage');
   sp.classList.add('show');
-  document.getElementById('s-name').textContent = document.getElementById('name').value || '—';
-  document.getElementById('s-phone').textContent = document.getElementById('phone').value || '—';
-  document.getElementById('s-year').textContent = document.getElementById('check-year').value || '—';
+  document.getElementById('s-name').textContent = data.الاسم || '—';
+  document.getElementById('s-phone').textContent = data.الهاتف || '—';
+  document.getElementById('s-year').textContent = selectedYears.join(', ') || '—';
   document.getElementById('s-result').textContent = window._resultText || '—';
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
@@ -1331,7 +1387,7 @@ async function analyze106(input, cardId) {
     const base64 = await fileToBase64(file);
     const isPDF = file.type === 'application/pdf';
     const mediaType = isPDF ? 'application/pdf' : file.type;
-    const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\nחפש: שדה 158/172 הכנסה ברוטו, שדה 042 מס הכנסה שנוכה, שדה 045 הפרשת עובד לפנסיה, שדה 246 הפרשת מעביד, שדה 048 ביטוח לאומי, שם מעסיק, שנת מס, חודשי עבודה, נקודות זיכוי.\nJSON בלבד: {"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"employeePension":null,"employerPension":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"notes":null}';
+    const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\nחפש: שדה 158/172 הכנסה ברוטו, שדה 042 מס הכנסה שנוכה, שדה 045 הפרשת עובד לפנסיה, שדה 246 הפרשת מעביד, שדה 048 ביטוח לאומי, שם מעסיק, שנת מס, חודשי עבודה, נקודות זיכוי.\nהחזר מספרים כמספרים בלבד ללא פסיקים (לדוגמה: 350994 ולא 350,994). JSON בלבד: {"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"employeePension":null,"employerPension":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"notes":null}';
     const content = isPDF
       ? [{type:'document',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]
       : [{type:'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}];
@@ -1356,9 +1412,12 @@ async function analyze106(input, cardId) {
     }
     const result = JSON.parse(text.replace(/```json|```/g,'').trim());
     window._extracted106 = window._extracted106 || {grossIncome:0,taxDeducted:0};
-    if (result.grossIncome) window._extracted106.grossIncome += Number(result.grossIncome);
-    if (result.taxDeducted) window._extracted106.taxDeducted += Number(result.taxDeducted);
+    const parseN = n => { if(!n) return 0; return parseFloat(String(n).replace(/,/g,'').replace(/[^0-9.]/g,'')) || 0; };
+    if (result.grossIncome) window._extracted106.grossIncome += parseN(result.grossIncome);
+    if (result.taxDeducted) window._extracted106.taxDeducted += parseN(result.taxDeducted);
     renderAnalysisCard(card, result);
+    // Trigger unemployment question if < 12 months
+    if (result.workMonths) checkUnemploymentFromFile(result.workMonths);
   } catch(err) {
     console.error('106 error:', err);
     // Try to get more details
@@ -1367,7 +1426,16 @@ async function analyze106(input, cardId) {
 }
 
 function renderAnalysisCard(card, r) {
-  const fmt = n => n ? Number(parseInt(n)).toLocaleString() + ' ₪' : '—';
+  // Remove commas before parsing (e.g. "350,994" -> 350994)
+  const parseNum = n => {
+    if (!n) return null;
+    const clean = String(n).replace(/,/g, '').replace(/[^0-9.]/g, '');
+    return parseFloat(clean) || null;
+  };
+  const fmt = n => {
+    const num = parseNum(n);
+    return num ? Math.round(num).toLocaleString('he-IL') + ' ₪' : '—';
+  };
   let refundHint = '';
   if (r.grossIncome && r.taxDeducted) {
     const rate = (r.taxDeducted / r.grossIncome * 100).toFixed(1);
@@ -1399,11 +1467,90 @@ function fileToBase64(file) {
   });
 }
 
+// ZONE DISCOUNT LOOKUP — based on official mas hakhnasa data
+const ZONE_DISCOUNTS = {
+  // 20% discount
+  'אילת':20,'eilat':20,
+  // 18% discount  
+  'מצפה רמון':18,'מצפה':18,
+  // 16% discount
+  'ירוחם':16,'דימונה':16,'ערד':16,'נתיבות':16,
+  // 14% discount
+  'שדרות':14,'אופקים':14,'קריית שמונה':14,'קריית גת':10,
+  // 12% discount
+  'בית שאן':12,'בית שמש':8,'טבריה':10,'עפולה':8,
+  // 10% discount - Arab cities
+  'סח'+'נין':10,'ערערה':10,'כפר קרע':10,'כפר מנדא':10,
+  'דיר חנא':10,'עיילבון':10,'מגאר':10,'טמרה':10,
+  'ריינה':10,'עילוט':10,'כפר כנא':10,'שבלי':10,
+  'ג'דידה מכר':10,'ג'ת':7,'ערה':7,'מעלה עירון':7,
+  'אום אל פחם':7,'באקה':7,'בסמה':7,'ברטעה':7,
+  'זמר':7,'קלנסוה':7,'טייבה':7,'טול כרם':7,
+  'עמקה':10,'יאנוח':10,'כסרא':10,
+  // 7% discount
+  'כרמיאל':7,'נהריה':7,'עכו':7,'מעלות':7,
+  'יקנעם':7,'נצרת':7,'שפרעם':7,'אבו סנאן':7,
+};
+
+function lookupZoneDiscount(city) {
+  const result = document.getElementById('zone-discount-result');
+  if (!result) return;
+  if (!city || city.length < 2) { result.style.display='none'; return; }
+  
+  const lower = city.toLowerCase().trim();
+  let discount = null;
+  
+  for (const [name, pct] of Object.entries(ZONE_DISCOUNTS)) {
+    if (lower.includes(name.toLowerCase()) || name.toLowerCase().includes(lower)) {
+      discount = pct;
+      break;
+    }
+  }
+  
+  if (discount) {
+    result.style.display = 'block';
+    result.innerHTML = '✅ ' + city + ' — تخفيض ضريبي رسمي: <strong>' + discount + '%</strong> من الدخل الخاضع للضريبة';
+    // Store for calculateResult
+    window._zoneDiscount = discount;
+    window._zoneCity = city;
+  } else {
+    result.style.display = 'block';
+    result.style.background = 'rgba(107,114,128,0.1)';
+    result.style.color = '#6B7280';
+    result.innerHTML = '⚠️ ' + city + ' — لم يتم العثور عليها في القائمة الرسمية. سيتحقق المحاسب يدوياً.';
+    window._zoneDiscount = 0;
+  }
+}
+
+// SHOW UNEMPLOYMENT QUESTION if 106 shows < 12 months
+function checkUnemploymentFromFile(workMonths) {
+  const field = document.getElementById('unemployment-field');
+  if (!field) return;
+  const months = parseInt(workMonths) || 12;
+  if (months < 12) {
+    field.style.display = 'block';
+    // Auto-set partial-year
+    document.getElementById('partial-year').value = 'نعم';
+  } else {
+    field.style.display = 'none';
+    document.getElementById('unemployment').value = 'لا';
+    document.getElementById('partial-year').value = 'لا';
+  }
+}
+
 updateProgress();
 
 // CALCULATE RESULT — מערכת נקודות זיכוי מדויקת לפי חוק מס הכנסה ישראלי 2024-2025
 function calculateResult() {
-  const POINT_VALUE_ANNUAL = 2904; // ₪ per point per year (2024-2025)
+  // Official point values per year (מס הכנסה)
+  const POINT_VALUES = {
+    2025: 2904, 2024: 2904, 2023: 2820, 2022: 2628, 2021: 2532, 2020: 2448
+  };
+  // Use average across selected years
+  const avgPointValue = selectedYears.length > 0
+    ? Math.round(selectedYears.reduce((s,y) => s + (POINT_VALUES[parseInt(y)] || 2904), 0) / selectedYears.length)
+    : 2904;
+  const POINT_VALUE_ANNUAL = avgPointValue;
   const gender = document.getElementById('gender').value;
   const isWoman = gender === 'أنثى';
   const married = document.getElementById('married').value === 'نعم';
@@ -1543,10 +1690,18 @@ function calculateResult() {
   const boostMultiplier = 1 + (refundBoostFactors.length * 0.1);
   const boostedMin = Math.round(totalMin * boostMultiplier);
   const boostedMax = Math.round(totalMax * boostMultiplier);
+  
+  // Add zone discount bonus if applicable
+  const zoneDiscount = window._zoneDiscount || 0;
+  const zoneBonus = zoneDiscount > 0 && window._extracted106?.grossIncome
+    ? Math.round(window._extracted106.grossIncome * (zoneDiscount / 100) * 0.3)
+    : 0;
+  const finalMin = boostedMin + zoneBonus;
+  const finalMax = boostedMax + zoneBonus;
 
   // ── تحديد مستوى النتيجة ──
   let level = extraPoints < 1 ? 'low' : extraPoints < 4 ? 'medium' : 'high';
-  if (boostedMin === 0 && refundBoostFactors.length === 0) level = 'low';
+  if (finalMin === 0 && refundBoostFactors.length === 0) level = 'low';
   else if (refundBoostFactors.length >= 2) level = level === 'low' ? 'medium' : 'high';
 
   const icons = { low: '🔵', medium: '🟡', high: '🟢' };
@@ -1562,7 +1717,7 @@ function calculateResult() {
   };
 
   const amountText = boostedMin > 0
-    ? `${boostedMin.toLocaleString()} — ${boostedMax.toLocaleString()} ₪`
+    ? `${finalMin.toLocaleString()} — ${finalMax.toLocaleString()} ₪`
     : 'يحتاج مراجعة إضافية للتقدير';
 
   const resultText = `${titles[level]} — ${amountText}`;
