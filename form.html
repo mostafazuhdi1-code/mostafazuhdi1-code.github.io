@@ -1107,6 +1107,12 @@ async function submitForm() {
     // Result
     result: window._resultText || '—',
     submittedAt: new Date().toLocaleString('he-IL'),
+    // Yearly breakdown for Sheet
+    yearlyBreakdown: window._yearlyBreakdown || [],
+    spouseName: document.getElementById('spouse-name')?.value || '—',
+    spouseBirth: document.getElementById('spouse-birth')?.value || '—',
+    spouseCreditPoints: window._spousePoints || 2.75,
+    children: document.getElementById('children').value || '0',
   };
 
   // ── Collect files ──
@@ -1943,6 +1949,7 @@ function calculateResult() {
   finalMax = Math.round((totalRefund + zoneBonus) * 1.2 * boostMult);
 
   window._yearlyBreakdown = yearlyBreakdown;
+  window._spousePoints = spousePoints;
   actualRefundNote = hasFileData
     ? `חישוב מפורט: ${married&&spouseWorks?'זוג נשוי — חישוב לכל הורה בנפרד':'חישוב יחיד'} × נקודות זיכוי`
     : 'تقدير بناءً على נקודות הזיכוי فقط — يرجى رفع ملف 106 للحساب الدقيق';
