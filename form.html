@@ -1724,16 +1724,17 @@ function calculateResult() {
   const isWoman = gender === 'أنثى';
 
   // ── Compute points for main applicant ──
-  // Main person gets children points if: single, or married man (mother takes children by default)
-  // If woman: she takes children points. If man married: wife takes children, he gets less.
-  const mainGetsChildren = isWoman || !married || !spouseWorks;
-  const {pts: mainPoints, det: mainDetails} = computePoints(isWoman, mainGetsChildren, false);
+  // القاعدة الرسمية:
+  // الأم: تحصل على نقاط الأولاد الكاملة (دائماً)
+  // الأب: يحصل على نقاطه الخاصة الأقل (دائماً، حتى لو متزوج)
+  // كلاهما يحصلان على نقاطهما بشكل مستقل — لا تعارض
+  const {pts: mainPoints, det: mainDetails} = computePoints(isWoman, true, false);
 
-  // ── Compute points for spouse (always woman=true since spouse is opposite) ──
-  const spouseIsWoman = !isWoman; // if applicant is man, spouse is woman and vice versa
-  const spouseGetsChildren = married && spouseWorks && !isWoman;
+  // ── Compute points for spouse ──
+  // الزوجة/الزوج أيضاً يحصل على نقاطه الكاملة بشكل مستقل
+  const spouseIsWoman = !isWoman;
   const {pts: spousePoints, det: spouseDetails} = married && spouseWorks
-    ? computePoints(spouseIsWoman, spouseGetsChildren, true)
+    ? computePoints(spouseIsWoman, true, true)
     : {pts: 0, det: []};
 
   // ── Other factors (apply to main applicant) ──
@@ -1790,20 +1791,34 @@ function calculateResult() {
     const mainMonths = yMain?.workMonths || 12;
     const spouseMonths = ySpouse?.workMonths || 12;
 
-    // Main person credit value this year
+    // ── Main person refund this year ──
+    // הכלל: החזר מס = min(מס ששולם בפועל, שווי נקודות הזיכוי)
+    // לא ניתן לקבל החזר יותר ממה ששולם
     const mainCredit = Math.round(mainPoints * (mainMonths/12) * yPV);
     const mainTax42  = yMain ? Math.round(yMain.taxDeducted) : 0;
-    const mainRefund = hasFileData && mainTax42 > 0
-      ? Math.max(0, mainCredit - mainTax42 > 0 ? mainCredit - mainTax42 : 0)
-      : Math.round(extraPoints * yPV * (mainMonths/12));
+    let mainRefund = 0;
+    if (mainTax42 > 0) {
+      // יש מס ששולם — ההחזר הוא min(מה ששולם, שווי הנקודות)
+      mainRefund = Math.min(mainTax42, mainCredit);
+    } else if (!hasFileData) {
+      // אין קובץ 106 — הערכה בלבד
+      mainRefund = Math.round((mainPoints-(isWoman?2.75:2.25)) * yPV * (mainMonths/12));
+    }
+    // אם mainTax42 === 0 וקיים קובץ — אין החזר (לא שולם מס)
 
-    // Spouse credit value this year
+    // ── Spouse refund this year ──
     const spouseCredit = married && spouseWorks
       ? Math.round(spousePoints * (spouseMonths/12) * yPV) : 0;
-    const spouseTax42  = ySpouse ? Math.round(ySpouse.taxDeducted) : 0;
-    const spouseRefund = hasSpouseData && spouseTax42 > 0
-      ? Math.max(0, spouseCredit - spouseTax42 > 0 ? spouseCredit - spouseTax42 : 0)
-      : (married && spouseWorks ? Math.round((spousePoints-(spouseIsWoman?2.75:2.25)) * yPV * (spouseMonths/12)) : 0);
+    const spouseTax42 = ySpouse ? Math.round(ySpouse.taxDeducted) : 0;
+    let spouseRefund = 0;
+    if (married && spouseWorks) {
+      if (spouseTax42 > 0) {
+        spouseRefund = Math.min(spouseTax42, spouseCredit);
+      } else if (!hasSpouseData) {
+        spouseRefund = Math.round((spousePoints-(spouseIsWoman?2.75:2.25)) * yPV * (spouseMonths/12));
+      }
+      // אם spouseTax42 === 0 וקיים קובץ — אין החזר
+    }
 
     const yearTotal = mainRefund + spouseRefund;
 
