@@ -1002,12 +1002,20 @@ function goPrev(from) {
 function validateStep(step) {
   let valid = true;
   if (step === 1) {
-    const name = document.getElementById('name').value.trim();
+    const name  = document.getElementById('name').value.trim();
     const phone = document.getElementById('phone').value.trim();
     const birth = document.getElementById('birthyear').value;
+    const married = document.getElementById('married').value === 'نعم';
+    const marriageYear = document.getElementById('marriage-year')?.value;
     setFieldError('f-name', !name);
     setFieldError('f-phone', !phone);
     setFieldError('f-birthyear', !birth || birth < 1940 || birth > 2005);
+    if (married && !marriageYear) {
+      alert('يرجى إدخال سنة الزواج للمتابعة');
+      const el = document.getElementById('marriage-year');
+      if (el) { el.style.borderColor='var(--red)'; el.focus(); }
+      return false;
+    }
     valid = name && phone && birth && birth >= 1940 && birth <= 2005;
   }
   if (step === 3) {
@@ -1276,19 +1284,20 @@ function renderYearCards() {
         <div id="files-container-${year}"></div>
         ${needSpouse ? `
         <div class="divider"></div>
-        <div class="field" id="f-spouse-${year}">
-          <label><span class="req">*</span> ارفع ملف 106 للزوج/الزوجة — ${year}
-            <span class="hint">إلزامي لأنكما كنتما متزوجين وكلاكما يعمل في هذه السنة</span>
-          </label>
-          <div class="file-area">
-            <input type="file" id="file-spouse-${year}" accept=".pdf,.jpg,.jpeg,.png"
-              style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%"
-              onchange="handleFile(this,'files-spouse-${year}');analyze106Spouse(this,'analysis-spouse-${year}','${year}')">
-            <div class="file-area-icon">👫</div>
-            <div class="file-area-text">ملف 106 للزوج/الزوجة</div>
-            <div class="file-area-hint">PDF، JPG، PNG — حتى 10MB</div>
+        <div style="background:rgba(147,51,234,0.06);border:1px solid rgba(147,51,234,0.2);border-radius:12px;padding:16px;margin-top:8px">
+          <p style="font-size:14px;font-weight:800;color:#6B21A8;margin-bottom:14px">👫 بيانات الزوجة/الزوج — ${year}</p>
+          <div class="field">
+            <label><span class="req">*</span> كم عدد أماكن عمل الزوجة/الزوج في ${year}؟</label>
+            <div class="radio-group inline" id="spouse-employers-${year}">
+              <div class="radio-item" onclick="selectRadio(this,'spouse-employers-val-${year}','1');updateSpouseFileCount('${year}',1)"><div class="radio-dot"></div>مكان واحد</div>
+              <div class="radio-item" onclick="selectRadio(this,'spouse-employers-val-${year}','2');updateSpouseFileCount('${year}',2)"><div class="radio-dot"></div>مكانان</div>
+              <div class="radio-item" onclick="selectRadio(this,'spouse-employers-val-${year}','3+');updateSpouseFileCount('${year}',3)"><div class="radio-dot"></div>3 أو أكثر</div>
+            </div>
+            <input type="hidden" id="spouse-employers-val-${year}">
           </div>
-          <div class="file-list" id="files-spouse-${year}"></div>
+          <div id="spouse-files-section-${year}" style="display:none">
+            <div id="spouse-files-container-${year}"></div>
+          </div>
           <div class="analysis-card" id="analysis-spouse-${year}"></div>
         </div>` : ''}
       </div>
@@ -1669,6 +1678,57 @@ async function analyze106Spouse(input, cardId, year) {
   }
 }
 
+// ── updateSpouseFileCount ──
+function updateSpouseFileCount(year, count) {
+  const section = document.getElementById(`spouse-files-section-${year}`);
+  const container = document.getElementById(`spouse-files-container-${year}`);
+  if (!section || !container) return;
+  section.style.display = 'block';
+  const labels = ['الأول','الثاني','الثالث'];
+  container.innerHTML = '';
+  for (let i = 1; i <= count; i++) {
+    const lbl = count === 1 ? '' : ` — المشغّل ${labels[i-1]||i}`;
+    container.innerHTML += `
+      <div class="field" style="margin-top:12px">
+        <label><span class="req">*</span> ملف 106 للزوجة/الزوج — ${year}${lbl}</label>
+        <div class="file-area">
+          <input type="file" id="file-spouse-${year}-${i}" accept=".pdf,.jpg,.jpeg,.png"
+            style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%"
+            onchange="handleFile(this,'files-spouse-${year}-${i}');analyze106Spouse(this,'analysis-spouse-${year}','${year}')">
+          <div class="file-area-icon">👫</div>
+          <div class="file-area-text">ملف 106 للزوجة/الزوج</div>
+          <div class="file-area-hint">PDF، JPG، PNG</div>
+        </div>
+        <div class="file-list" id="files-spouse-${year}-${i}"></div>
+      </div>`;
+  }
+}
+
+// ── Official Israeli tax brackets (מדרגות מס הכנסה) ──
+// Returns annual tax BEFORE credit points, based on annual gross income
+function calcTaxByBrackets(annualIncome, year) {
+  // Brackets: [upTo, rate] — 2024/2025 (frozen)
+  const BRACKETS = {
+    2025: [[84120,0.10],[120720,0.14],[193800,0.20],[269280,0.31],[560280,0.35],[721560,0.47],[Infinity,0.50]],
+    2024: [[84120,0.10],[120720,0.14],[193800,0.20],[269280,0.31],[560280,0.35],[721560,0.47],[Infinity,0.50]],
+    2023: [[81480,0.10],[116760,0.14],[187440,0.20],[260520,0.31],[542160,0.35],[698280,0.47],[Infinity,0.50]],
+    2022: [[77400,0.10],[110880,0.14],[178080,0.20],[247440,0.31],[514920,0.35],[663240,0.47],[Infinity,0.50]],
+    2021: [[75720,0.10],[108600,0.14],[174360,0.20],[242400,0.31],[504360,0.35],[647640,0.47],[Infinity,0.50]],
+    2020: [[75960,0.10],[108960,0.14],[174960,0.20],[243120,0.31],[505920,0.35],[649560,0.47],[Infinity,0.50]],
+  };
+  const brackets = BRACKETS[parseInt(year)] || BRACKETS[2025];
+  let tax = 0;
+  let prev = 0;
+  for (const [upTo, rate] of brackets) {
+    if (annualIncome <= prev) break;
+    const taxable = Math.min(annualIncome, upTo) - prev;
+    tax += taxable * rate;
+    prev = upTo;
+    if (upTo === Infinity) break;
+  }
+  return Math.round(tax);
+}
+
 updateProgress();
 
 // CALCULATE RESULT — מערכת נקודות זיכוי מדויקת לפי חוק מס הכנסה ישראלי 2024-2025
@@ -1791,42 +1851,60 @@ function calculateResult() {
     const mainMonths = yMain?.workMonths || 12;
     const spouseMonths = ySpouse?.workMonths || 12;
 
-    // ── Main person refund this year ──
-    // הכלל: החזר מס = min(מס ששולם בפועל, שווי נקודות הזיכוי)
-    // לא ניתן לקבל החזר יותר ממה ששולם
+    // ── الحساب الصحيح لكل شخص: ──
+    // 1. الضريبة المستحقة = calcTaxByBrackets(فرع 158)
+    // 2. قيمة النقاط = נקודות × שווי נקודה
+    // 3. الضريبة الفعلية = max(0, المستحقة − قيمة النقاط)
+    // 4. الاسترجاع = فرع 42 المدفوع − الضريبة الفعلية
+    //    (لا يتجاوز ما دُفع، ولا يكون سالباً)
+
     const mainCredit = Math.round(mainPoints * (mainMonths/12) * yPV);
     const mainTax42  = yMain ? Math.round(yMain.taxDeducted) : 0;
+    const mainGross158 = yMain ? Math.round(yMain.grossIncome) : 0;
     let mainRefund = 0;
-    if (mainTax42 > 0) {
-      // יש מס ששולם — ההחזר הוא min(מה ששולם, שווי הנקודות)
+
+    if (mainTax42 > 0 && mainGross158 > 0) {
+      // الحساب الكامل
+      const mainTaxDue = Math.round(calcTaxByBrackets(mainGross158, yr) * (mainMonths/12));
+      const mainTaxAfterCredit = Math.max(0, mainTaxDue - mainCredit);
+      mainRefund = Math.max(0, mainTax42 - mainTaxAfterCredit);
+    } else if (mainTax42 > 0) {
+      // فقط فرع 42 — استخدم النقاط مقارنةً بما دُفع
       mainRefund = Math.min(mainTax42, mainCredit);
     } else if (!hasFileData) {
-      // אין קובץ 106 — הערכה בלבד
+      // لا يوجد ملف 106 — تقدير
       mainRefund = Math.round((mainPoints-(isWoman?2.75:2.25)) * yPV * (mainMonths/12));
     }
-    // אם mainTax42 === 0 וקיים קובץ — אין החזר (לא שולם מס)
+    // إذا mainTax42 === 0 وملف موجود → لا استرجاع
 
-    // ── Spouse refund this year ──
+    // ── Spouse calculation ──
     const spouseCredit = married && spouseWorks
       ? Math.round(spousePoints * (spouseMonths/12) * yPV) : 0;
     const spouseTax42 = ySpouse ? Math.round(ySpouse.taxDeducted) : 0;
+    const spouseGross158 = ySpouse ? Math.round(ySpouse.grossIncome) : 0;
     let spouseRefund = 0;
+
     if (married && spouseWorks) {
-      if (spouseTax42 > 0) {
+      if (spouseTax42 > 0 && spouseGross158 > 0) {
+        const spouseTaxDue = Math.round(calcTaxByBrackets(spouseGross158, yr) * (spouseMonths/12));
+        const spouseTaxAfterCredit = Math.max(0, spouseTaxDue - spouseCredit);
+        spouseRefund = Math.max(0, spouseTax42 - spouseTaxAfterCredit);
+      } else if (spouseTax42 > 0) {
         spouseRefund = Math.min(spouseTax42, spouseCredit);
       } else if (!hasSpouseData) {
         spouseRefund = Math.round((spousePoints-(spouseIsWoman?2.75:2.25)) * yPV * (spouseMonths/12));
       }
-      // אם spouseTax42 === 0 וקיים קובץ — אין החזר
     }
 
     const yearTotal = mainRefund + spouseRefund;
 
     yearlyBreakdown.push({
       year: yr,
+      mainGross: mainGross158,
       mainTax: mainTax42,
       mainCredit,
       mainRefund,
+      spouseGross: spouseGross158,
       spouseTax: spouseTax42,
       spouseCredit,
       spouseRefund,
@@ -1834,18 +1912,22 @@ function calculateResult() {
     });
 
     // Add year detail to main details
-    if (mainTax42 > 0 || mainCredit > 0) {
+    if (mainGross158 > 0 || mainTax42 > 0) {
+      const mainTaxDue2 = mainGross158>0 ? Math.round(calcTaxByBrackets(mainGross158,yr)*(mainMonths/12)) : 0;
+      const mainTaxAfter2 = Math.max(0, mainTaxDue2 - mainCredit);
       details.push({
         label: `📅 ${yr} — مقدم الطلب`,
         points: `استرجاع: ${mainRefund.toLocaleString()} ₪`,
-        note: `فرع 042: ${mainTax42.toLocaleString()} ₪ | نقاط הZיכוי: ${mainCredit.toLocaleString()} ₪`
+        note: `158: ${mainGross158.toLocaleString()} ₪ | ضريبة مستحقة: ${mainTaxDue2.toLocaleString()} ₪ | زيכوי: ${mainCredit.toLocaleString()} ₪ | 042: ${mainTax42.toLocaleString()} ₪`
       });
     }
-    if ((spouseTax42 > 0 || spouseCredit > 0) && married && spouseWorks) {
+    if ((spouseGross158 > 0 || spouseTax42 > 0) && married && spouseWorks) {
+      const spouseTaxDue2 = spouseGross158>0 ? Math.round(calcTaxByBrackets(spouseGross158,yr)*(spouseMonths/12)) : 0;
+      const spouseTaxAfter2 = Math.max(0, spouseTaxDue2 - spouseCredit);
       details.push({
         label: `📅 ${yr} — الزوجة/الزوج`,
         points: `استرجاع: ${spouseRefund.toLocaleString()} ₪`,
-        note: `فرع 042: ${spouseTax42.toLocaleString()} ₪ | נקודות: ${spouseCredit.toLocaleString()} ₪`
+        note: `158: ${spouseGross158.toLocaleString()} ₪ | ضريبة مستحقة: ${spouseTaxDue2.toLocaleString()} ₪ | זיכוי: ${spouseCredit.toLocaleString()} ₪ | 042: ${spouseTax42.toLocaleString()} ₪`
       });
     }
   }
