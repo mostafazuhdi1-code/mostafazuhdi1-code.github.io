@@ -1052,54 +1052,9 @@ async function submitForm() {
   const btn = document.querySelector('.btn-submit');
   if (btn) { btn.textContent = '⏳ جارٍ الإرسال...'; btn.disabled = true; }
 
-  // ── Collect all uploaded files ──
+  // ── Collect all uploaded files from memory ──
   async function collectFiles() {
-    const files = [];
-    const fileInputIds = [];
-
-    // Collect all file-list divs that have files
-    document.querySelectorAll('[id^="files-"]').forEach(list => {
-      const inputId = list.id.replace('files-', 'file-');
-      const input = document.getElementById(inputId);
-      if (input && input.files && input.files.length > 0) {
-        fileInputIds.push(inputId);
-      }
-    });
-
-    // Also check stored file objects
-    for (const listEl of document.querySelectorAll('[id^="files-"]')) {
-      const tags = listEl.querySelectorAll('.file-tag');
-      tags.forEach(tag => {
-        const nameEl = tag.querySelector('span:nth-child(2)');
-        if (nameEl) {
-          const name = nameEl.textContent;
-          const sectionId = listEl.id;
-          // Mark file with its section name
-          if (!files.find(f => f.name === name)) {
-            files.push({ name, section: sectionId, data: null, type: 'application/octet-stream' });
-          }
-        }
-      });
-    }
-
-    // Convert actual file inputs to base64
-    const result = [];
-    for (const inputId of fileInputIds) {
-      const input = document.getElementById(inputId);
-      if (!input || !input.files) continue;
-      for (const file of input.files) {
-        try {
-          const base64 = await fileToBase64(file);
-          result.push({
-            name: file.name,
-            type: file.type || 'application/octet-stream',
-            data: base64,
-            section: inputId
-          });
-        } catch(e) { console.log('file error:', e); }
-      }
-    }
-    return result;
+    return window._storedFiles || [];
   }
 
   // ── Collect form data ──
@@ -1328,12 +1283,13 @@ function renderYearCards() {
           <div class="file-area">
             <input type="file" id="file-spouse-${year}" accept=".pdf,.jpg,.jpeg,.png"
               style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%"
-              onchange="handleFile(this,'files-spouse-${year}')">
+              onchange="handleFile(this,'files-spouse-${year}');analyze106Spouse(this,'analysis-spouse-${year}','${year}')">
             <div class="file-area-icon">👫</div>
             <div class="file-area-text">ملف 106 للزوج/الزوجة</div>
             <div class="file-area-hint">PDF، JPG، PNG — حتى 10MB</div>
           </div>
           <div class="file-list" id="files-spouse-${year}"></div>
+          <div class="analysis-card" id="analysis-spouse-${year}"></div>
         </div>` : ''}
       </div>
     </div>`;
@@ -1445,16 +1401,37 @@ function togglePrivacy() {
 }
 
 // FILE UPLOAD — fixed to prevent double trigger
+// FILE UPLOAD — fixed to prevent double trigger + store in memory
+window._storedFiles = window._storedFiles || [];
+
 function handleFile(input, listId) {
   const list = document.getElementById(listId);
   if (!list) return;
   Array.from(input.files).forEach(file => {
+    // Store file object in memory BEFORE resetting input
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const base64 = e.target.result.split(',')[1];
+      window._storedFiles.push({
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        data: base64,
+        section: listId,
+        size: file.size
+      });
+    };
+    reader.readAsDataURL(file);
+
+    // Show tag in UI
     const tag = document.createElement('div');
     tag.className = 'file-tag';
-    tag.innerHTML = `<span>📄</span><span>${file.name}</span><button class="file-tag-remove" onclick="this.parentElement.remove()">✕</button>`;
+    tag.innerHTML = `<span>📄</span><span>${file.name}</span><button class="file-tag-remove" onclick="
+      const name='${file.name}';
+      window._storedFiles = window._storedFiles.filter(f=>f.name!==name);
+      this.parentElement.remove()
+    ">✕</button>`;
     list.appendChild(tag);
   });
-  // reset input so same file can be re-uploaded if needed, without double trigger
   setTimeout(() => { input.value = ''; }, 100);
 }
 
@@ -1497,14 +1474,30 @@ async function analyze106(input, cardId) {
       throw new Error('unexpected response: ' + JSON.stringify(data).substring(0,200));
     }
     const result = JSON.parse(text.replace(/```json|```/g,'').trim());
-    window._extracted106 = window._extracted106 || {grossIncome:0,taxDeducted:0};
     const parseN = n => { if(!n) return 0; return parseFloat(String(n).replace(/,/g,'').replace(/[^0-9.]/g,'')) || 0; };
+    window._extracted106 = window._extracted106 || {grossIncome:0, taxDeducted:0};
+    window._extracted106PerYear = window._extracted106PerYear || {};
+
+    // Accumulate totals
     if (result.grossIncome)  window._extracted106.grossIncome  += parseN(result.grossIncome);
     if (result.taxDeducted)  window._extracted106.taxDeducted  += parseN(result.taxDeducted);
     if (result.idNumber)     window._extracted106.idNumber      = result.idNumber;
     if (result.workMonths)   window._extracted106.workMonths    = result.workMonths;
     if (result.creditPoints) window._extracted106.creditPoints  = result.creditPoints;
     if (result.employer)     window._extracted106.employer      = result.employer;
+
+    // Store PER YEAR for individual year calculation
+    const yr = result.taxYear ? String(result.taxYear).trim() : null;
+    if (yr) {
+      if (!window._extracted106PerYear[yr]) {
+        window._extracted106PerYear[yr] = {grossIncome:0, taxDeducted:0, employer:'', workMonths:12, creditPoints:0};
+      }
+      if (result.grossIncome)  window._extracted106PerYear[yr].grossIncome  += parseN(result.grossIncome);
+      if (result.taxDeducted)  window._extracted106PerYear[yr].taxDeducted  += parseN(result.taxDeducted);
+      if (result.employer)     window._extracted106PerYear[yr].employer      = result.employer || '';
+      if (result.workMonths)   window._extracted106PerYear[yr].workMonths    = parseInt(result.workMonths) || 12;
+      if (result.creditPoints) window._extracted106PerYear[yr].creditPoints  = parseN(result.creditPoints);
+    }
     renderAnalysisCard(card, result);
     // Trigger unemployment question if < 12 months
     if (result.workMonths) checkUnemploymentFromFile(result.workMonths);
@@ -1626,215 +1619,313 @@ function checkUnemploymentFromFile(workMonths) {
   }
 }
 
+// ── Analyze spouse 106 file ──
+async function analyze106Spouse(input, cardId, year) {
+  // Reuse same analyze106 logic but store in spouse-specific storage
+  const file = input.files[0];
+  if (!file) return;
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  card.classList.add('show');
+  card.innerHTML = '<div class="analysis-loading"><div class="analysis-spinner"></div><span>جارٍ تحليل ملف 106 للزوجة/الزوج...</span></div>';
+  try {
+    const base64 = await fileToBase64(file);
+    const isPDF = file.type === 'application/pdf';
+    const mediaType = isPDF ? 'application/pdf' : file.type;
+    const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\nחפש: שדה 158/172 הכנסה ברוטו, שדה 042 מס הכנסה שנוכה, שדה 045 הפרשת עובד לפנסיה, שדה 048 ביטוח לאומי, שם מעסיק, שנת מס, חודשי עבודה, נקודות זיכוי, מספר זהות.\nהחזר מספרים ללא פסיקים. JSON בלבד: {"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"idNumber":null,"notes":null}';
+    const contentArr = isPDF
+      ? [{type:'document',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]
+      : [{type:'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}];
+    const resp = await fetch('https://analyze-106.mostafa-zuhdi1.workers.dev', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:contentArr}]})
+    });
+    if (!resp.ok) { const t=await resp.text(); throw new Error('HTTP '+resp.status+': '+t.substring(0,100)); }
+    const data = await resp.json();
+    if (!data.content || !Array.isArray(data.content)) throw new Error(JSON.stringify(data.error||data));
+    const text = data.content.map(c=>c.text||'').join('');
+    const result = JSON.parse(text.replace(/```json|```/g,'').trim());
+    const parseN = n => { if(!n) return 0; return parseFloat(String(n).replace(/,/g,'').replace(/[^0-9.]/g,''))||0; };
+
+    // Store in spouse-specific storage
+    window._extracted106Spouse = window._extracted106Spouse || {grossIncome:0,taxDeducted:0};
+    window._extracted106SpousePerYear = window._extracted106SpousePerYear || {};
+    if (result.grossIncome) window._extracted106Spouse.grossIncome += parseN(result.grossIncome);
+    if (result.taxDeducted) window._extracted106Spouse.taxDeducted += parseN(result.taxDeducted);
+
+    const yr = result.taxYear ? String(result.taxYear).trim() : year;
+    if (yr) {
+      if (!window._extracted106SpousePerYear[yr]) {
+        window._extracted106SpousePerYear[yr] = {grossIncome:0,taxDeducted:0,workMonths:12};
+      }
+      if (result.grossIncome) window._extracted106SpousePerYear[yr].grossIncome += parseN(result.grossIncome);
+      if (result.taxDeducted) window._extracted106SpousePerYear[yr].taxDeducted += parseN(result.taxDeducted);
+      if (result.workMonths)  window._extracted106SpousePerYear[yr].workMonths   = parseInt(result.workMonths)||12;
+    }
+    renderAnalysisCard(card, result);
+    if (result.workMonths) checkUnemploymentFromFile(result.workMonths);
+  } catch(err) {
+    card.innerHTML = '<div class="analysis-error">⚠️ خطأ: '+(err.message||err)+'</div>';
+  }
+}
+
 updateProgress();
 
 // CALCULATE RESULT — מערכת נקודות זיכוי מדויקת לפי חוק מס הכנסה ישראלי 2024-2025
 function calculateResult() {
-  // Official point values per year (מס הכנסה)
-  const POINT_VALUES = {
-    2025: 2904, 2024: 2904, 2023: 2820, 2022: 2628, 2021: 2532, 2020: 2448
-  };
-  // Use average across selected years
-  const avgPointValue = selectedYears.length > 0
-    ? Math.round(selectedYears.reduce((s,y) => s + (POINT_VALUES[parseInt(y)] || 2904), 0) / selectedYears.length)
-    : 2904;
-  const POINT_VALUE_ANNUAL = avgPointValue;
-  const gender = document.getElementById('gender').value;
-  const isWoman = gender === 'أنثى';
-  const married = document.getElementById('married').value === 'نعم';
-  const divorced = document.getElementById('divorce').value === 'نعم';
+  const POINT_VALUES = {2025:2904,2024:2904,2023:2820,2022:2628,2021:2532,2020:2448};
   const totalYears = selectedYears.length || 1;
+  const POINT_VALUE_ANNUAL = selectedYears.length > 0
+    ? Math.round(selectedYears.reduce((s,y) => s+(POINT_VALUES[parseInt(y)]||2904),0)/selectedYears.length)
+    : 2904;
 
-  let points = 0;
-  const details = [];
-
-  // ── 1. נקודות בסיס ──
-  if (isWoman) {
-    points += 2.75;
-    details.push({ label: 'נקודות בסיס — תושבת ישראל + אישה', points: '2.75', note: '2.25 תושבת + 0.5 אישה' });
-  } else {
-    points += 2.25;
-    details.push({ label: 'نقاط أساس — مقيم في إسرائيل', points: '2.25', note: 'لكل مقيم' });
-  }
-
-  // ── 2. ילדים — حسب سنوات ولادة الأولاد ──
-  // نسأل عن سنوات الميلاد للأولاد في النموذج
-  // نحسب عمر كل ولد في السنة المفحوصة (نأخذ آخر سنة مختارة)
-  const checkYear = selectedYears.length > 0
-    ? Math.max(...selectedYears.map(Number))
-    : new Date().getFullYear();
-
+  const married    = document.getElementById('married').value === 'نعم';
+  const spouseWorks= document.getElementById('spouse-works')?.value === 'نعم';
+  const divorced   = document.getElementById('divorce').value === 'نعم';
   const childCount = parseInt(document.getElementById('children').value) || 0;
-  let totalChildPoints = 0;
-  let childDetails = [];
+  const checkYear  = selectedYears.length > 0 ? Math.max(...selectedYears.map(Number)) : new Date().getFullYear();
 
-  for (let i = 1; i <= Math.min(childCount, 5); i++) {
-    const birthYearInput = document.getElementById(`child-birth-${i}`);
-    const birthYear = birthYearInput ? parseInt(birthYearInput.value) : 0;
-    if (!birthYear) continue;
+  // ── Helper: compute points for one person ──
+  function computePoints(isWoman, includeChildren, isSpouse) {
+    let pts = isWoman ? 2.75 : 2.25;
+    const det = [];
+    det.push({label: isSpouse ? 'نقاط أساس — الزوجة' : 'نقاط أساس', points: isWoman?'2.75':'2.25', note: isWoman?'2.25 תושבת + 0.5 אישה':'لكل مقيم'});
 
-    const age = checkYear - birthYear;
-
-    let childPts = 0;
-    let ageNote = '';
-
-    if (age === 0) {
-      // شنة الولادة
-      childPts = isWoman ? 2.5 : 1.5;
-      ageNote = 'سنة الولادة';
-    } else if (age === 1 || age === 2) {
-      // גיל 1-2
-      childPts = isWoman ? 4.5 : 4.5;
-      ageNote = `גיל ${age} — חוק 2024`;
-    } else if (age === 3) {
-      // גיל 3
-      childPts = isWoman ? 2.5 : 1.5;
-      ageNote = 'גיל 3';
-    } else if (age >= 4 && age <= 5) {
-      // גיל 4-5
-      childPts = isWoman ? 2.5 : 1.5;
-      ageNote = `גיל ${age}`;
-    } else if (age >= 6 && age <= 17) {
-      // גיל 6-17 (חוק 2024)
-      childPts = isWoman ? 2.0 : 1.0;
-      ageNote = `גיל ${age} (6-17)`;
-    } else if (age === 18) {
-      childPts = isWoman ? 0.5 : 0.5;
-      ageNote = 'גיל 18 — שנה אחרונה';
+    if (includeChildren) {
+      let totalChild = 0;
+      const childDets = [];
+      for (let i = 1; i <= Math.min(childCount, 5); i++) {
+        const birthYear = parseInt(document.getElementById(`child-birth-${i}`)?.value) || 0;
+        if (!birthYear) continue;
+        const age = checkYear - birthYear;
+        let cp = 0, ageNote = '';
+        if      (age === 0)               { cp = isWoman?2.5:1.5; ageNote='שנת לידה'; }
+        else if (age === 1 || age === 2)  { cp = 4.5;             ageNote=`גיל ${age} — חוק 2024`; }
+        else if (age === 3)               { cp = isWoman?3.5:2.5; ageNote='גיל 3'; }
+        else if (age >= 4 && age <= 5)   { cp = isWoman?2.5:1.5; ageNote=`גיל ${age}`; }
+        else if (age >= 6 && age <= 17)  { cp = isWoman?2.0:1.0; ageNote=`גיל ${age} (6-17)`; }
+        else if (age === 18)             { cp = 0.5;              ageNote='גיל 18'; }
+        if (cp > 0) { totalChild += cp; childDets.push({age, cp, ageNote}); }
+      }
+      if (totalChild > 0) {
+        pts += totalChild;
+        det.push({label:`نقاط الأولاد (${childCount})`, points:`+${totalChild}`, note: childDets.map(c=>`גיל ${c.age}:${c.cp}`).join(' | ')});
+      }
     }
 
-    if (childPts > 0) {
-      totalChildPoints += childPts;
-      childDetails.push({ age, pts: childPts, note: ageNote });
+    if (divorced && childCount > 0 && !isSpouse) {
+      pts += 1;
+      det.push({label:'הורה גרוש/ה', points:'+1', note:'הורה מחזיק'});
     }
+    return {pts, det};
   }
 
-  if (totalChildPoints > 0) {
-    points += totalChildPoints;
-    const childSummary = childDetails.map(c => `ولد عمره ${c.age} (${c.note}): ${c.pts}`).join(' | ');
-    details.push({ label: `نقاط الأولاد (${childCount} أولاد)`, points: `+${totalChildPoints}`, note: childSummary });
-  }
+  const gender  = document.getElementById('gender').value;
+  const isWoman = gender === 'أنثى';
 
-  // ── 3. הורה חד הורי / גרוש ──
-  if (divorced && childCount > 0) {
-    points += 1;
-    details.push({ label: 'הورה גרוש/מטפל (נקודה נוספת)', points: '+1', note: 'הורה מחזיק בילדים' });
-  }
+  // ── Compute points for main applicant ──
+  // Main person gets children points if: single, or married man (mother takes children by default)
+  // If woman: she takes children points. If man married: wife takes children, he gets less.
+  const mainGetsChildren = isWoman || !married || !spouseWorks;
+  const {pts: mainPoints, det: mainDetails} = computePoints(isWoman, mainGetsChildren, false);
 
-  // ── 4. לימודים אקדמיים ──
+  // ── Compute points for spouse (always woman=true since spouse is opposite) ──
+  const spouseIsWoman = !isWoman; // if applicant is man, spouse is woman and vice versa
+  const spouseGetsChildren = married && spouseWorks && !isWoman;
+  const {pts: spousePoints, det: spouseDetails} = married && spouseWorks
+    ? computePoints(spouseIsWoman, spouseGetsChildren, true)
+    : {pts: 0, det: []};
+
+  // ── Other factors (apply to main applicant) ──
+  const details = [...mainDetails];
+  let extraPoints = mainPoints - (isWoman ? 2.75 : 2.25);
+
   if (document.getElementById('education').value === 'نعم') {
-    const eduYear = parseInt(document.getElementById('education-year')?.value) || 0;
-    if (eduYear > 0 && selectedYears.some(y => parseInt(y) === eduYear ||
-        parseInt(y) === eduYear + 1 || parseInt(y) === eduYear + 2)) {
-      points += 1;
-      details.push({ label: 'תואר אקדמי / קורס מקצועי מוכר', points: '+1', note: 'נקודה אחת לשנת סיום + שנתיים לאחר מכן' });
+    const eduYear = parseInt(document.getElementById('education-year')?.value)||0;
+    if (eduYear > 0 && selectedYears.some(y=>parseInt(y)===eduYear||parseInt(y)===eduYear+1||parseInt(y)===eduYear+2)) {
+      mainPoints; // already computed, just add to details
+      details.push({label:'תואר אקדמי', points:'+1', note:'נקודה לשנת סיום + 2 שנים'});
     }
   }
-
-  // ── 5. ישוב מוטב ──
   if (document.getElementById('zone').value === 'نعم') {
-    points += 0.5; // تقدير متحفظ — يتفاوت حسب البلدة
-    details.push({ label: 'ישוב מוטב (אזור עדיפות)', points: '+0.5', note: 'يتفاوت حسب البلدة — تقدير أولي' });
+    details.push({label:'ישוב מוטב', points:'+0.5', note:'يتفاوت حسب البلدة'});
   }
-
-  // ── 6. נכות / מצב בריאותי ──
   if (document.getElementById('health').value === 'نعم') {
-    points += 2;
-    details.push({ label: 'נכות / מצב בריאותי מוכר', points: '+2', note: '2 نقاط للإعاقة المعترف بها' });
+    details.push({label:'נכות מוכרת', points:'+2', note:'2 نقاط للإعاقة'});
   }
-
-  // ── 7. ADHD / צרכים מיוחדים ──
   if (document.getElementById('special-need').value === 'نعم') {
-    points += 2;
-    details.push({ label: 'ילד עם לקות למידה / ADHD / נטול יכולת', points: '+2', note: 'החל 2025 — חינוך מיוחד' });
+    details.push({label:'לקות למידה/ADHD', points:'+2', note:'החל 2025'});
   }
-
-  // ── 8. תרומות ──
   if (document.getElementById('donation').value === 'نعم') {
-    // تبرعات: 35% من مبلغ التبرع كخصم ضريبي — ليس نقاط بل رصيد مباشر
-    details.push({ label: 'תרומות למוסד מוכר', points: '35% הנחה', note: 'زيكوي مباشر بقيمة 35% من مبلغ التبرع' });
+    details.push({label:'תרומות', points:'35% הנחה', note:'زيكوי مباشر'});
   }
 
-  // ── عوامل تزيد احتمالية وجود استرجاع (ليست نقاط זיכוי) ──
+  // ── Refund boost factors ──
   let refundBoostFactors = [];
   let multiEmployer = false;
   for (const year of selectedYears) {
     const emp = document.getElementById(`employers-val-${year}`)?.value;
-    if (emp === '2' || emp === '3+') { multiEmployer = true; break; }
+    if (emp==='2'||emp==='3+') {multiEmployer=true; break;}
   }
   if (multiEmployer) refundBoostFactors.push('أكثر من مشغّل — احتمال عدم تنسيق ضريبي');
-  if (document.getElementById('unemployment').value === 'نعم') refundBoostFactors.push('فترة بطالة أو توقف عن العمل');
-  if (document.getElementById('partial-year').value === 'نعم') refundBoostFactors.push('عمل جزء من السنة فقط');
-  if (document.getElementById('bitula').value === 'نعم') refundBoostFactors.push('دمي בيטלה — قد يؤثر على الحساب');
-  if (document.getElementById('lida').value === 'نعم') refundBoostFactors.push('דمי לידה — إجازة ولادة');
+  if (document.getElementById('unemployment').value==='نعم') refundBoostFactors.push('فترة بطالة أو توقف');
+  if (document.getElementById('bitula').value==='نعم') refundBoostFactors.push('דמי בيטלה');
+  if (document.getElementById('lida').value==='نعم') refundBoostFactors.push('דמי לידה');
 
-  // ── حساب قيمة النقاط ──
-  const extraPoints = points - (isWoman ? 2.75 : 2.25);
-  const estimatedSavingPerYear = Math.round(extraPoints * POINT_VALUE_ANNUAL);
-  const totalMin = Math.max(0, Math.round(estimatedSavingPerYear * totalYears * 0.7));
-  const totalMax = Math.round(estimatedSavingPerYear * totalYears * 1.3);
+  // ── Per-year refund calculation ──
+  const perYearData = window._extracted106PerYear || {};
+  const spousePerYearData = window._extracted106SpousePerYear || {};
+  const hasFileData = Object.keys(perYearData).length > 0;
+  const hasSpouseData = Object.keys(spousePerYearData).length > 0;
 
-  // إضافة عوامل الاسترجاع لتأثير على التقدير
-  const boostMultiplier = 1 + (refundBoostFactors.length * 0.1);
-  const boostedMin = Math.round(totalMin * boostMultiplier);
-  const boostedMax = Math.round(totalMax * boostMultiplier);
-  
-  // Add zone discount bonus if applicable
+  let finalMin = 0, finalMax = 0, actualRefundNote = '';
+  const yearlyBreakdown = [];
+
+  for (const year of selectedYears) {
+    const yr = String(year);
+    const yPV = POINT_VALUES[parseInt(year)] || 2904;
+    const yMain = perYearData[yr];
+    const ySpouse = spousePerYearData[yr];
+
+    const mainMonths = yMain?.workMonths || 12;
+    const spouseMonths = ySpouse?.workMonths || 12;
+
+    // Main person credit value this year
+    const mainCredit = Math.round(mainPoints * (mainMonths/12) * yPV);
+    const mainTax42  = yMain ? Math.round(yMain.taxDeducted) : 0;
+    const mainRefund = hasFileData && mainTax42 > 0
+      ? Math.max(0, mainCredit - mainTax42 > 0 ? mainCredit - mainTax42 : 0)
+      : Math.round(extraPoints * yPV * (mainMonths/12));
+
+    // Spouse credit value this year
+    const spouseCredit = married && spouseWorks
+      ? Math.round(spousePoints * (spouseMonths/12) * yPV) : 0;
+    const spouseTax42  = ySpouse ? Math.round(ySpouse.taxDeducted) : 0;
+    const spouseRefund = hasSpouseData && spouseTax42 > 0
+      ? Math.max(0, spouseCredit - spouseTax42 > 0 ? spouseCredit - spouseTax42 : 0)
+      : (married && spouseWorks ? Math.round((spousePoints-(spouseIsWoman?2.75:2.25)) * yPV * (spouseMonths/12)) : 0);
+
+    const yearTotal = mainRefund + spouseRefund;
+
+    yearlyBreakdown.push({
+      year: yr,
+      mainTax: mainTax42,
+      mainCredit,
+      mainRefund,
+      spouseTax: spouseTax42,
+      spouseCredit,
+      spouseRefund,
+      total: yearTotal
+    });
+
+    // Add year detail to main details
+    if (mainTax42 > 0 || mainCredit > 0) {
+      details.push({
+        label: `📅 ${yr} — مقدم الطلب`,
+        points: `استرجاع: ${mainRefund.toLocaleString()} ₪`,
+        note: `فرع 042: ${mainTax42.toLocaleString()} ₪ | نقاط הZיכוי: ${mainCredit.toLocaleString()} ₪`
+      });
+    }
+    if ((spouseTax42 > 0 || spouseCredit > 0) && married && spouseWorks) {
+      details.push({
+        label: `📅 ${yr} — الزوجة/الزوج`,
+        points: `استرجاع: ${spouseRefund.toLocaleString()} ₪`,
+        note: `فرع 042: ${spouseTax42.toLocaleString()} ₪ | נקודות: ${spouseCredit.toLocaleString()} ₪`
+      });
+    }
+  }
+
+  const totalRefund = yearlyBreakdown.reduce((s,y)=>s+y.total,0);
+  const boostMult = 1 + (refundBoostFactors.length * 0.08);
   const zoneDiscount = window._zoneDiscount || 0;
-  const zoneBonus = zoneDiscount > 0 && window._extracted106?.grossIncome
-    ? Math.round(window._extracted106.grossIncome * (zoneDiscount / 100) * 0.3)
-    : 0;
-  const finalMin = boostedMin + zoneBonus;
-  const finalMax = boostedMax + zoneBonus;
+  const totalGross = window._extracted106?.grossIncome || 0;
+  const zoneBonus = zoneDiscount > 0 && totalGross > 0
+    ? Math.round(totalGross * (zoneDiscount/100) * 0.25) : 0;
 
-  // ── تحديد مستوى النتيجة ──
-  let level = extraPoints < 1 ? 'low' : extraPoints < 4 ? 'medium' : 'high';
+  finalMin = Math.max(0, Math.round((totalRefund + zoneBonus) * 0.8 * boostMult));
+  finalMax = Math.round((totalRefund + zoneBonus) * 1.2 * boostMult);
+
+  window._yearlyBreakdown = yearlyBreakdown;
+  actualRefundNote = hasFileData
+    ? `חישוב מפורט: ${married&&spouseWorks?'זוג נשוי — חישוב לכל הורה בנפרד':'חישוב יחיד'} × נקודות זיכוי`
+    : 'تقدير بناءً على נקודות הזיכוי فقط — يرجى رفع ملف 106 للحساب الدقيق';
+
+  // ── Spouse points summary ──
+  if (married && spouseWorks && spousePoints > 0) {
+    details.push({
+      label: '👫 نقاط הZיכוי — الزوجة/الزوج',
+      points: `${spousePoints.toFixed(2)} נק'`,
+      note: spouseDetails.map(d=>d.label+': '+d.points).join(' | ')
+    });
+  }
+
+  // ── Level ──
+  const totalPoints = mainPoints + spousePoints;
+  let level = totalPoints < 5 ? 'low' : totalPoints < 10 ? 'medium' : 'high';
   if (finalMin === 0 && refundBoostFactors.length === 0) level = 'low';
-  else if (refundBoostFactors.length >= 2) level = level === 'low' ? 'medium' : 'high';
+  else if (finalMin > 3000 || refundBoostFactors.length >= 2) level = level==='low'?'medium':'high';
 
-  const icons = { low: '🔵', medium: '🟡', high: '🟢' };
-  const titles = {
-    low: 'احتمال منخفض إلى متوسط للاسترجاع',
-    medium: 'احتمال جيد للاسترجاع ✦',
-    high: 'احتمال مرتفع جداً للاسترجاع! ✨'
+  const icons  = {low:'🔵',medium:'🟡',high:'🟢'};
+  const titles = {low:'احتمال منخفض إلى متوسط للاسترجاع',medium:'احتمال جيد للاسترجاع ✦',high:'احتمال مرتفع جداً للاسترجاع! ✨'};
+  const texts  = {
+    low:  'بناءً على الحساب، التوفير الضريبي محدود. المراجعة الدقيقة مع المستندات قد تكشف إضافيات.',
+    medium:'يبدو أن هناك نقاط הZיכוי غير مستغلة. ننصح بمراجعة كاملة مع المحاسب.',
+    high: 'لديك احتمال استرجاع مرتفع! لا تترك هذا المبلغ دون مطالبة.'
   };
-  const texts = {
-    low: 'بناءً على نقاط הזיכוי المحسوبة، التوفير الضريبي محدود. لكن المراجعة الدقيقة للمستندات قد تكشف عن استحقاقات إضافية.',
-    medium: 'يبدو أن لديك نقاط זיכוי إضافية غير مستغلة. ننصح بمراجعة كاملة للملف مع المحاسب.',
-    high: 'لديك نقاط זיכוי كثيرة وعوامل تدل على احتمال استرجاع مرتفع. لا تترك هذا المبلغ دون مطالبة!'
-  };
-
-  const amountText = boostedMin > 0
+  const amountText = finalMin > 0
     ? `${finalMin.toLocaleString()} — ${finalMax.toLocaleString()} ₪`
     : 'يحتاج مراجعة إضافية للتقدير';
 
   const resultText = `${titles[level]} — ${amountText}`;
 
-  // بناء جدول التفاصيل
+  // ── Details HTML ──
   const detailsHTML = `
     <div style="margin-top:16px;background:rgba(255,255,255,0.75);border-radius:12px;padding:16px;text-align:right">
-      <p style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:12px">📊 حساب נקודות הזיכוי:</p>
-      ${details.map(d => `
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;
-          padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.07);font-size:13px;gap:8px">
-          <div style="line-height:1.5">
-            <span style="color:#1f2937;font-weight:600">${d.label}</span><br>
-            <span style="font-size:11px;color:#9CA3AF">${d.note}</span>
-          </div>
+      <p style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:12px">📊 حساب נקודות הZיכוי:</p>
+      ${details.map(d=>`
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.07);font-size:13px;gap:8px">
+          <div style="line-height:1.5"><span style="color:#1f2937;font-weight:600">${d.label}</span><br>
+          <span style="font-size:11px;color:#9CA3AF">${d.note}</span></div>
           <span style="font-weight:900;color:var(--navy);white-space:nowrap;font-size:14px">${d.points}</span>
         </div>`).join('')}
-      <div style="display:flex;justify-content:space-between;padding:12px 0 4px;font-size:15px;font-weight:900;color:var(--navy);border-top:2px solid var(--gold);margin-top:4px">
-        <span>סה"כ נקודות זיכוי</span>
-        <span style="color:var(--gold)">${points.toFixed(2)} נקודות</span>
+      <div style="display:flex;justify-content:space-between;padding:10px 0 2px;font-size:14px;font-weight:900;color:var(--navy);border-top:2px solid var(--gold);margin-top:4px">
+        <span>סה"כ נקודות — مقدم الطلب</span>
+        <span style="color:var(--gold)">${mainPoints.toFixed(2)} נק'</span>
       </div>
-      <div style="font-size:12px;color:var(--gray);text-align:left;margin-top:4px">
-        שווי נקודה: ₪242/חודש = ₪2,904/שנה (2025)
-      </div>
-      ${refundBoostFactors.length > 0 ? `
-      <div style="margin-top:12px;padding:10px 12px;background:rgba(201,168,76,0.1);border-radius:8px;border:1px solid rgba(201,168,76,0.3)">
-        <p style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:6px">⚡ عوامل إضافية تزيد احتمالية الاسترجاع:</p>
-        ${refundBoostFactors.map(f => `<p style="font-size:12px;color:#78350F;margin-bottom:3px">• ${f}</p>`).join('')}
-      </div>` : ''}
+      ${married&&spouseWorks?`<div style="display:flex;justify-content:space-between;padding:4px 0 8px;font-size:13px;font-weight:700;color:var(--navy)">
+        <span>סה"כ נקודות — الزوجة/الزوج</span>
+        <span style="color:var(--gold)">${spousePoints.toFixed(2)} נק'</span>
+      </div>`:''}
+      <div style="font-size:12px;color:var(--gray);margin-top:4px">שווי נקודה: ₪${POINT_VALUE_ANNUAL.toLocaleString()}/שנה</div>
+      ${actualRefundNote?`<div style="margin-top:10px;padding:8px 12px;background:rgba(15,37,68,0.06);border-radius:8px;font-size:12px;color:var(--navy)">📌 ${actualRefundNote}</div>`:''}
+      ${yearlyBreakdown.length>0?`
+      <div style="margin-top:14px">
+        <p style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:8px">📅 ملخص الاسترجاع لكل سنة:</p>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="background:var(--navy);color:white">
+            <th style="padding:7px 8px;text-align:right">السنة</th>
+            <th style="padding:7px 8px;text-align:right">042 مقدم</th>
+            ${married&&spouseWorks?'<th style="padding:7px 8px;text-align:right">042 زوجة</th>':''}
+            <th style="padding:7px 8px;text-align:right;color:var(--gold-light)">الاسترجاع</th>
+          </tr></thead>
+          <tbody>${yearlyBreakdown.map((y,i)=>`
+            <tr style="background:${i%2===0?'rgba(15,37,68,0.03)':'white'}">
+              <td style="padding:7px 8px;font-weight:700;color:var(--navy)">${y.year}</td>
+              <td style="padding:7px 8px;color:#DC2626">${y.mainTax?y.mainTax.toLocaleString()+' ₪':'—'}</td>
+              ${married&&spouseWorks?`<td style="padding:7px 8px;color:#9333EA">${y.spouseTax?y.spouseTax.toLocaleString()+' ₪':'—'}</td>`:''}
+              <td style="padding:7px 8px;font-weight:900;color:var(--navy)">${y.total.toLocaleString()} ₪</td>
+            </tr>`).join('')}
+            <tr style="background:var(--gold);font-weight:900">
+              <td style="padding:8px;color:var(--navy)" colspan="${married&&spouseWorks?3:2}">סה"כ</td>
+              <td style="padding:8px;color:var(--navy);font-size:14px">${finalMin.toLocaleString()} — ${finalMax.toLocaleString()} ₪</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`:''}
+      ${refundBoostFactors.length>0?`<div style="margin-top:12px;padding:10px 12px;background:rgba(201,168,76,0.1);border-radius:8px;border:1px solid rgba(201,168,76,0.3)">
+        <p style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:6px">⚡ عوامل إضافية:</p>
+        ${refundBoostFactors.map(f=>`<p style="font-size:12px;color:#78350F;margin-bottom:3px">• ${f}</p>`).join('')}
+      </div>`:''}
     </div>`;
 
   const html = `<div class="result-card ${level}">
@@ -1848,6 +1939,7 @@ function calculateResult() {
   document.getElementById('result-display').innerHTML = html;
   window._resultText = resultText;
 }
+
 </script>
 </body>
 </html>
