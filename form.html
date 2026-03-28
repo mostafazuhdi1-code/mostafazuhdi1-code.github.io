@@ -1986,10 +1986,13 @@ function calculateResult() {
   const spouseWorks= married && document.getElementById('spouse-works')?.value === 'نعم';
   const divorced   = document.getElementById('divorce').value === 'نعم';
   const childCount = parseInt(document.getElementById('children').value) || 0;
-  const checkYear  = selectedYears.length > 0 ? Math.max(...selectedYears.map(Number)) : new Date().getFullYear();
+  const gender  = document.getElementById('gender').value;
+  const isWoman = gender === 'أنثى';
+  const spouseIsWoman = !isWoman;
 
-  // ── Helper: compute points for one person ──
-  function computePoints(isWoman, includeChildren, isSpouse) {
+  // ── Helper: compute points for one person FOR A SPECIFIC TAX YEAR ──
+  // عمر الأولاد يُحسب لكل سنة ضريبية على حدة
+  function computePointsForYear(isWoman, includeChildren, isSpouse, taxYear) {
     let pts = isWoman ? 2.75 : 2.25;
     const det = [];
     det.push({label: isSpouse ? 'نقاط أساس — الزوجة' : 'نقاط أساس', points: isWoman?'2.75':'2.25', note: isWoman?'2.25 תושבת + 0.5 אישה':'لكل مقيم'});
@@ -2000,7 +2003,9 @@ function calculateResult() {
       for (let i = 1; i <= Math.min(childCount, 5); i++) {
         const birthYear = parseInt(document.getElementById(`child-birth-${i}`)?.value) || 0;
         if (!birthYear) continue;
-        const age = checkYear - birthYear;
+        // العمر الضريبي = سنة الضريبة − سنة الميلاد (لكل سنة على حدة)
+        const age = taxYear - birthYear;
+        if (age < 0) continue; // لم يُولد بعد في هذه السنة
         let cp = 0, ageNote = '';
         if      (age === 0)               { cp = isWoman?2.5:1.5; ageNote='שנת לידה'; }
         else if (age === 1 || age === 2)  { cp = 4.5;             ageNote=`גיל ${age} — חוק 2024`; }
@@ -2012,7 +2017,7 @@ function calculateResult() {
       }
       if (totalChild > 0) {
         pts += totalChild;
-        det.push({label:`نقاط الأولاد (${childCount})`, points:`+${totalChild}`, note: childDets.map(c=>`גיל ${c.age}:${c.cp}`).join(' | ')});
+        det.push({label:`نقاط الأولاد (${childCount})`, points:`+${totalChild.toFixed(2)}`, note: childDets.map(c=>`גיל ${c.age}:${c.cp}`).join(' | ')});
       }
     }
 
@@ -2023,22 +2028,15 @@ function calculateResult() {
     return {pts, det};
   }
 
-  const gender  = document.getElementById('gender').value;
-  const isWoman = gender === 'أنثى';
-
-  // ── Compute points for main applicant ──
-  // القاعدة الرسمية:
-  // الأم: تحصل على نقاط الأولاد الكاملة (دائماً)
-  // الأب: يحصل على نقاطه الخاصة الأقل (دائماً، حتى لو متزوج)
-  // كلاهما يحصلان على نقاطهما بشكل مستقل — لا تعارض
-  const {pts: mainPoints, det: mainDetails} = computePoints(isWoman, true, false);
-
-  // ── Compute points for spouse ──
-  // الزوجة/الزوج أيضاً يحصل على نقاطه الكاملة بشكل مستقل
-  const spouseIsWoman = !isWoman;
-  const {pts: spousePoints, det: spouseDetails} = married && spouseWorks
-    ? computePoints(spouseIsWoman, true, true)
+  // نقاط تقريبية لعرض الملخص (بناءً على أحدث سنة مختارة)
+  const displayYear = selectedYears.length > 0 ? Math.max(...selectedYears.map(Number)) : new Date().getFullYear();
+  const {pts: mainPointsDisplay, det: mainDetails} = computePointsForYear(isWoman, true, false, displayYear);
+  const {pts: spousePointsDisplay, det: spouseDetails} = married && spouseWorks
+    ? computePointsForYear(spouseIsWoman, true, true, displayYear)
     : {pts: 0, det: []};
+  // هذه تُستخدم فقط للعرض في بطاقة النتيجة — الحساب الفعلي يتم لكل سنة داخل الحلقة
+  const mainPoints = mainPointsDisplay;
+  const spousePoints = spousePointsDisplay;
 
   // ── Other factors (apply to main applicant) ──
   const details = [...mainDetails];
@@ -2087,25 +2085,32 @@ function calculateResult() {
 
   for (const year of selectedYears) {
     const yr = String(year);
-    const yPV = POINT_VALUES[parseInt(year)] || 2904;
+    const taxYr = parseInt(year);
+    const yPV = POINT_VALUES[taxYr] || 2904;
     const yMain = perYearData[yr];
     const ySpouse = spousePerYearData[yr];
 
     const mainMonths = yMain?.workMonths || 12;
     const spouseMonths = ySpouse?.workMonths || 12;
 
-    // ── الحساب الصحيح لكل شخص: ──
+    // ── حساب النقاط لهذه السنة تحديداً (عمر الأولاد يختلف من سنة لأخرى) ──
+    const {pts: mainPointsYr} = computePointsForYear(isWoman, true, false, taxYr);
+    const {pts: spousePointsYr} = married && spouseWorks
+      ? computePointsForYear(spouseIsWoman, true, true, taxYr)
+      : {pts: 0};
+
+    // ── الحساب الصحيح لكل شخص لهذه السنة: ──
     // 1. الضريبة المستحقة = calcTaxByBrackets(فرع 158)
-    // 2. זיכוי נקודות = נקודות × שווי נקודה
+    // 2. זיכוי נקודות = נקודות هذه السنة × שווי נקודה هذه السنة
     // 3. זיכוי פנסיה סעיף 45א = 35% × שדה 045/086 (עד 7% מהכנסה, תקרה 8,700/חודש)
-    // 4. الضريبة الفعلية = max(0, المستحقة − זיכוי נקודות − זיכוי פנסיה)
-    // 5. الاسترجاع = max(0, فرع 42 − الضريبة الفعلية)
+    // 4. الضريبة الفعلية = max(0, المستحقة − זיכוי نقاط − זיכוי פנסיה)
+    // 5. الاسترجاع = max(0, فرع 42 − الضريبة الفعلية) — لا يجمع مع سنوات أخرى
 
-    const PENSION_CREDIT_INCOME_CAP_MONTHLY = 8700; // תקרת הכנסה לזיכוי פנסיה
-    const PENSION_CREDIT_RATE = 0.35;               // 35% זיכוי על ההפקדה המזכה
-    const PENSION_EMPLOYEE_RATE_CAP = 0.07;         // עד 7% מההכנסה
+    const PENSION_CREDIT_INCOME_CAP_MONTHLY = 8700;
+    const PENSION_CREDIT_RATE = 0.35;
+    const PENSION_EMPLOYEE_RATE_CAP = 0.07;
 
-    const mainCredit = Math.round(mainPoints * (mainMonths/12) * yPV);
+    const mainCredit = Math.round(mainPointsYr * (mainMonths/12) * yPV);
     const mainTax42  = yMain ? Math.round(yMain.taxDeducted) : 0;
     const mainGross158 = yMain ? Math.round(yMain.grossIncome) : 0;
     const mainPension045 = yMain ? Math.round(yMain.employeePension || 0) : 0;
@@ -2126,12 +2131,13 @@ function calculateResult() {
     } else if (mainTax42 > 0) {
       mainRefund = Math.min(mainTax42, mainCredit + mainPensionCredit);
     } else if (!hasFileData) {
-      mainRefund = Math.round((mainPoints-(isWoman?2.75:2.25)) * yPV * (mainMonths/12));
+      // تقدير بناءً على نقاط الأولاد لهذه السنة تحديداً
+      mainRefund = Math.round((mainPointsYr-(isWoman?2.75:2.25)) * yPV * (mainMonths/12));
     }
 
     // ── Spouse calculation ──
     const spouseCredit = married && spouseWorks
-      ? Math.round(spousePoints * (spouseMonths/12) * yPV) : 0;
+      ? Math.round(spousePointsYr * (spouseMonths/12) * yPV) : 0;
     const spouseTax42 = ySpouse ? Math.round(ySpouse.taxDeducted) : 0;
     const spouseGross158 = ySpouse ? Math.round(ySpouse.grossIncome) : 0;
     const spousePension045 = ySpouse ? Math.round(ySpouse.employeePension || 0) : 0;
@@ -2152,7 +2158,7 @@ function calculateResult() {
       } else if (spouseTax42 > 0) {
         spouseRefund = Math.min(spouseTax42, spouseCredit + spousePensionCredit);
       } else if (!hasSpouseData) {
-        spouseRefund = Math.round((spousePoints-(spouseIsWoman?2.75:2.25)) * yPV * (spouseMonths/12));
+        spouseRefund = Math.round((spousePointsYr-(spouseIsWoman?2.75:2.25)) * yPV * (spouseMonths/12));
       }
     }
 
@@ -2162,12 +2168,14 @@ function calculateResult() {
       year: yr,
       mainGross: mainGross158,
       mainTax: mainTax42,
+      mainPoints: mainPointsYr,
       mainCredit,
       mainPensionCredit,
       mainPension045,
       mainRefund,
       spouseGross: spouseGross158,
       spouseTax: spouseTax42,
+      spousePoints: spousePointsYr,
       spouseCredit,
       spousePensionCredit,
       spousePension045,
@@ -2181,7 +2189,7 @@ function calculateResult() {
       details.push({
         label: `📅 ${yr} — مقدم الطلب`,
         points: `استرجاع: ${mainRefund.toLocaleString()} ₪`,
-        note: `158: ${mainGross158.toLocaleString()} ₪ | ضريبة مستحقة: ${mainTaxDue2.toLocaleString()} ₪ | זיכוי נק': ${mainCredit.toLocaleString()} ₪${mainPensionCredit>0?' | זיכוי פנסיה: '+mainPensionCredit.toLocaleString()+' ₪':''} | 042: ${mainTax42.toLocaleString()} ₪`
+        note: `נק' ${yr}: ${mainPointsYr.toFixed(2)} | 158: ${mainGross158.toLocaleString()} ₪ | ضريبة: ${mainTaxDue2.toLocaleString()} ₪ | זיכוי: ${mainCredit.toLocaleString()} ₪${mainPensionCredit>0?' | פנסיה: '+mainPensionCredit.toLocaleString()+' ₪':''} | 042: ${mainTax42.toLocaleString()} ₪`
       });
     }
     if ((spouseGross158 > 0 || spouseTax42 > 0) && married && spouseWorks) {
@@ -2189,7 +2197,7 @@ function calculateResult() {
       details.push({
         label: `📅 ${yr} — الزوجة/الزوج`,
         points: `استرجاع: ${spouseRefund.toLocaleString()} ₪`,
-        note: `158: ${spouseGross158.toLocaleString()} ₪ | ضريبة مستحقة: ${spouseTaxDue2.toLocaleString()} ₪ | זיכוי נק': ${spouseCredit.toLocaleString()} ₪${spousePensionCredit>0?' | זיכוי פנסיה: '+spousePensionCredit.toLocaleString()+' ₪':''} | 042: ${spouseTax42.toLocaleString()} ₪`
+        note: `נק' ${yr}: ${spousePointsYr.toFixed(2)} | 158: ${spouseGross158.toLocaleString()} ₪ | ضريبة: ${spouseTaxDue2.toLocaleString()} ₪ | זיכוי: ${spouseCredit.toLocaleString()} ₪${spousePensionCredit>0?' | פנסיה: '+spousePensionCredit.toLocaleString()+' ₪':''} | 042: ${spouseTax42.toLocaleString()} ₪`
       });
     }
   }
@@ -2211,16 +2219,16 @@ function calculateResult() {
     : 'تقدير بناءً على נקודות הזיכוי فقط — يرجى رفع ملف 106 للحساب الدقيق';
 
   // ── Spouse points summary ──
-  if (married && spouseWorks && spousePoints > 0) {
+  if (married && spouseWorks && spousePointsDisplay > 0) {
     details.push({
       label: '👫 نقاط הZיכוי — الزوجة/الزوج',
-      points: `${spousePoints.toFixed(2)} נק'`,
+      points: `${spousePointsDisplay.toFixed(2)} נק' (${displayYear})`,
       note: spouseDetails.map(d=>d.label+': '+d.points).join(' | ')
     });
   }
 
   // ── Level ──
-  const totalPoints = mainPoints + spousePoints;
+  const totalPoints = mainPointsDisplay + spousePointsDisplay;
   let level = totalPoints < 5 ? 'low' : totalPoints < 10 ? 'medium' : 'high';
   if (finalMin === 0 && refundBoostFactors.length === 0) level = 'low';
   else if (finalMin > 3000 || refundBoostFactors.length >= 2) level = level==='low'?'medium':'high';
