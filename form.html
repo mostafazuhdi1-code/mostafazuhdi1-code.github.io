@@ -1141,20 +1141,7 @@ async function submitForm() {
   let files = [];
   try { files = await collectFiles(); } catch(e) { console.log('collect error:', e); }
 
-  // ── Send to Google Apps Script ──
-  try {
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({ ...formData, files })
-    });
-    const result = await response.json();
-    console.log('Drive result:', result);
-  } catch(e) {
-    console.log('Drive error:', e);
-    // Continue anyway — show success to user
-  }
-
-  // ── Show success page ──
+  // ── Show success page immediately (don't wait for Google Script) ──
   document.getElementById('mainForm').style.display = 'none';
   document.getElementById('progressWrap').style.display = 'none';
   const sp = document.getElementById('successPage');
@@ -1164,6 +1151,22 @@ async function submitForm() {
   document.getElementById('s-year').textContent = selectedYears.join(', ') || '—';
   document.getElementById('s-result').textContent = window._resultText || '—';
   window.scrollTo({top: 0, behavior: 'smooth'});
+
+  // ── Send to Google Apps Script in background (no-cors to avoid CORS block) ──
+  try {
+    fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ ...formData, files })
+    }).then(() => {
+      console.log('Sent to Google Script ✅');
+    }).catch(e => {
+      console.log('Drive error (non-blocking):', e);
+    });
+  } catch(e) {
+    console.log('Drive send error:', e);
+  }
 }
 
 // SYNC MARRIED FROM STEP 1 TO STEP 2
