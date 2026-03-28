@@ -414,6 +414,51 @@ body {
   .step-title { font-size: 18px; }
   .card { padding: 18px; }
 }
+
+/* SENDING MODAL */
+.send-modal-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(15,37,68,0.7); backdrop-filter: blur(4px);
+  display: none; align-items: center; justify-content: center;
+}
+.send-modal-overlay.show { display: flex; }
+.send-modal {
+  background: var(--white); border-radius: 24px; padding: 40px 36px;
+  text-align: center; max-width: 340px; width: 90%;
+  box-shadow: 0 20px 60px rgba(15,37,68,0.3);
+  animation: modalPop 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes modalPop {
+  from { opacity:0; transform:scale(0.8); }
+  to   { opacity:1; transform:scale(1); }
+}
+.send-modal-icon { font-size: 56px; margin-bottom: 16px; }
+.send-modal-title { font-size: 20px; font-weight: 900; color: var(--navy); margin-bottom: 8px; }
+.send-modal-text  { font-size: 14px; color: var(--gray); line-height: 1.7; }
+.send-spinner {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 4px solid rgba(15,37,68,0.15);
+  border-top-color: var(--navy);
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+.send-progress {
+  height: 4px; background: var(--gray-light); border-radius: 50px;
+  margin-top: 16px; overflow: hidden;
+}
+.send-progress-bar {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--navy), var(--gold));
+  border-radius: 50px;
+  transition: width 0.4s ease;
+}
+.send-modal-btn {
+  margin-top: 20px; padding: 12px 32px;
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  color: var(--navy); border: none; border-radius: 10px;
+  font-family: 'Cairo', sans-serif; font-size: 15px; font-weight: 800;
+  cursor: pointer; display: none;
+}
 </style>
 </head>
 <body>
@@ -647,20 +692,13 @@ body {
       <div class="field">
         <label>هل تلقيت دمي بيطلا (بطالة)؟</label>
         <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'bitula','نعم');toggleConditionalWithYears('bitula-fields','نعم','bitula-years-group','bitula-years')">✅ نعم</button>
+          <button class="yn-btn yes" onclick="selectYN(this,'bitula','نعم');toggleConditionalWithYears('bitula-fields','نعم','bitula-per-year','bitula','مثال: 8000')">✅ نعم</button>
           <button class="yn-btn no" onclick="selectYN(this,'bitula','لا');toggleConditional('bitula-fields','لا')">❌ لا</button>
         </div>
         <input type="hidden" id="bitula">
         <div class="conditional" id="bitula-fields">
-          <div class="field" style="margin-top:10px">
-            <label>في أي سنة/سنوات؟ <span style="color:var(--gray);font-size:12px;font-weight:500">(اختر كل السنوات المنطبقة)</span></label>
-            <div id="bitula-years-group" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"></div>
-            <input type="hidden" id="bitula-years">
-          </div>
-          <div class="field">
-            <label>المبلغ التقريبي (بالشيكل)</label>
-            <input type="number" id="bitula-amount" placeholder="مثال: 8000">
-          </div>
+          <p style="font-size:13px;color:var(--gray);margin-top:10px;margin-bottom:10px">أدخل المبلغ لكل سنة انطبقت عليها — اتركها فارغة للسنوات الأخرى</p>
+          <div id="bitula-per-year"></div>
         </div>
       </div>
 
@@ -669,20 +707,13 @@ body {
       <div class="field">
         <label>هل تلقيت دمي ليدا (إجازة ولادة)؟</label>
         <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'lida','نعم');toggleConditionalWithYears('lida-fields','نعم','lida-years-group','lida-years')">✅ نعم</button>
+          <button class="yn-btn yes" onclick="selectYN(this,'lida','نعم');toggleConditionalWithYears('lida-fields','نعم','lida-per-year','lida','مثال: 15000')">✅ نعم</button>
           <button class="yn-btn no" onclick="selectYN(this,'lida','لا');toggleConditional('lida-fields','لا')">❌ لا</button>
         </div>
         <input type="hidden" id="lida">
         <div class="conditional" id="lida-fields">
-          <div class="field" style="margin-top:10px">
-            <label>في أي سنة/سنوات؟ <span style="color:var(--gray);font-size:12px;font-weight:500">(اختر كل السنوات المنطبقة)</span></label>
-            <div id="lida-years-group" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"></div>
-            <input type="hidden" id="lida-years">
-          </div>
-          <div class="field">
-            <label>المبلغ التقريبي (بالشيكل)</label>
-            <input type="number" id="lida-amount" placeholder="مثال: 15000">
-          </div>
+          <p style="font-size:13px;color:var(--gray);margin-top:10px;margin-bottom:10px">أدخل المبلغ لكل سنة انطبقت عليها — اتركها فارغة للسنوات الأخرى</p>
+          <div id="lida-per-year"></div>
         </div>
       </div>
 
@@ -691,24 +722,17 @@ body {
       <div class="field">
         <label>هل تلقيت مخصصات من بيطوح لئومي؟</label>
         <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'bituah','نعم');toggleConditionalWithYears('bituah-fields','نعم','bituah-years-group','bituah-years')">✅ نعم</button>
+          <button class="yn-btn yes" onclick="selectYN(this,'bituah','نعم');toggleConditionalWithYears('bituah-fields','نعم','bituah-per-year','bituah','مثال: 5000')">✅ نعم</button>
           <button class="yn-btn no" onclick="selectYN(this,'bituah','لا');toggleConditional('bituah-fields','لا')">❌ لا</button>
         </div>
         <input type="hidden" id="bituah">
         <div class="conditional" id="bituah-fields">
           <div class="field" style="margin-top:10px">
-            <label>في أي سنة/سنوات؟ <span style="color:var(--gray);font-size:12px;font-weight:500">(اختر كل السنوات المنطبقة)</span></label>
-            <div id="bituah-years-group" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"></div>
-            <input type="hidden" id="bituah-years">
-          </div>
-          <div class="field">
             <label>نوع المخصص</label>
             <input type="text" id="bituah-type" placeholder="مثال: مخصص أطفال، معاش عجز...">
           </div>
-          <div class="field">
-            <label>المبلغ التقريبي السنوي (بالشيكل)</label>
-            <input type="number" id="bituah-amount" placeholder="مثال: 5000">
-          </div>
+          <p style="font-size:13px;color:var(--gray);margin-top:10px;margin-bottom:10px">أدخل المبلغ لكل سنة انطبقت عليها — اتركها فارغة للسنوات الأخرى</p>
+          <div id="bituah-per-year"></div>
         </div>
       </div>
 
@@ -971,6 +995,17 @@ body {
   </a>
 </div>
 
+<!-- SENDING MODAL -->
+<div class="send-modal-overlay" id="sendModal">
+  <div class="send-modal" id="sendModalContent">
+    <div class="send-spinner" id="sendSpinner"></div>
+    <div class="send-modal-title" id="sendModalTitle">جارٍ إرسال بياناتك...</div>
+    <div class="send-modal-text" id="sendModalText">يرجى الانتظار، نقوم بحفظ معلوماتك بشكل آمن</div>
+    <div class="send-progress"><div class="send-progress-bar" id="sendProgressBar"></div></div>
+    <button class="send-modal-btn" id="sendModalBtn" onclick="closeSendModal()">حسناً ✓</button>
+  </div>
+</div>
+
 <!-- WHATSAPP FLOAT -->
 <a href="https://wa.me/972500000000" class="wa-float" target="_blank">
   <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
@@ -1022,9 +1057,9 @@ function goNext(from) {
   // Repopulate step 4 year buttons when entering step 4
   if (from + 1 === 4) {
     setTimeout(() => {
-      if (document.getElementById('bitula').value === 'نعم') populateYearCheckboxes('bitula-years-group','bitula-years');
-      if (document.getElementById('lida').value === 'نعم')   populateYearCheckboxes('lida-years-group','lida-years');
-      if (document.getElementById('bituah').value === 'نعم') populateYearCheckboxes('bituah-years-group','bituah-years');
+      if (document.getElementById('bitula').value === 'نعم') renderPerYearAmounts('bitula-per-year','bitula','مثال: 8000');
+      if (document.getElementById('lida').value === 'نعم')   renderPerYearAmounts('lida-per-year','lida','مثال: 15000');
+      if (document.getElementById('bituah').value === 'نعم') renderPerYearAmounts('bituah-per-year','bituah','مثال: 5000');
     }, 100);
   }
 }
@@ -1122,8 +1157,8 @@ async function submitForm() {
   if (phoneErr) phoneErr.style.display = 'none';
   document.getElementById('phone').value = phoneVal;
 
-  const btn = document.querySelector('.btn-submit');
-  if (btn) { btn.textContent = '⏳ جارٍ الإرسال...'; btn.disabled = true; }
+  // Show sending modal
+  showSendModal('sending');
 
   // ── Collect all uploaded files from memory ──
   async function collectFiles() {
@@ -1159,11 +1194,21 @@ async function submitForm() {
     // Step 4
     unemployment: document.getElementById('unemployment').value,
     bitula: document.getElementById('bitula').value,
-    bitulaYears: document.getElementById('bitula-years')?.value || '—',
+    bitulaPerYear: (() => {
+      const yrs = selectedYears.length > 0 ? [...selectedYears] : [];
+      const r = {}; yrs.forEach(yr => { const v = document.getElementById(`bitula-${yr}`)?.value; if(v && parseFloat(v)>0) r[yr]=parseFloat(v); }); return r;
+    })(),
     lida: document.getElementById('lida').value,
-    lidaYears: document.getElementById('lida-years')?.value || '—',
+    lidaPerYear: (() => {
+      const yrs = selectedYears.length > 0 ? [...selectedYears] : [];
+      const r = {}; yrs.forEach(yr => { const v = document.getElementById(`lida-${yr}`)?.value; if(v && parseFloat(v)>0) r[yr]=parseFloat(v); }); return r;
+    })(),
     bituah: document.getElementById('bituah').value,
-    bituahYears: document.getElementById('bituah-years')?.value || '—',
+    bituahType: document.getElementById('bituah-type')?.value || '—',
+    bituahPerYear: (() => {
+      const yrs = selectedYears.length > 0 ? [...selectedYears] : [];
+      const r = {}; yrs.forEach(yr => { const v = document.getElementById(`bituah-${yr}`)?.value; if(v && parseFloat(v)>0) r[yr]=parseFloat(v); }); return r;
+    })(),
     // Step 5
     donation: document.getElementById('donation').value,
     health: document.getElementById('health').value,
@@ -1187,18 +1232,16 @@ async function submitForm() {
   let files = [];
   try { files = await collectFiles(); } catch(e) { console.log('collect error:', e); }
 
-  // ── Show success page immediately (don't wait for Google Script) ──
-  document.getElementById('mainForm').style.display = 'none';
-  document.getElementById('progressWrap').style.display = 'none';
-  const sp = document.getElementById('successPage');
-  sp.classList.add('show');
+  // ── Prepare success info ──
   document.getElementById('s-name').textContent = clientName || '—';
   document.getElementById('s-phone').textContent = formData.phone || '—';
   document.getElementById('s-year').textContent = selectedYears.join(', ') || '—';
   document.getElementById('s-result').textContent = window._resultText || '—';
-  window.scrollTo({top: 0, behavior: 'smooth'});
 
-  // ── Send to Google Apps Script in background (no-cors to avoid CORS block) ──
+  // ── Animate progress bar ──
+  animateSendProgress();
+
+  // ── Send to Google Apps Script in background ──
   try {
     fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
@@ -1213,6 +1256,77 @@ async function submitForm() {
   } catch(e) {
     console.log('Drive send error:', e);
   }
+
+  // ── Show success after 2.5s ──
+  setTimeout(() => {
+    showSendModal('success');
+  }, 2500);
+}
+
+function showSendModal(state) {
+  const overlay = document.getElementById('sendModal');
+  const spinner = document.getElementById('sendSpinner');
+  const title   = document.getElementById('sendModalTitle');
+  const text    = document.getElementById('sendModalText');
+  const btn     = document.getElementById('sendModalBtn');
+  const bar     = document.getElementById('sendProgressBar');
+
+  overlay.classList.add('show');
+
+  if (state === 'sending') {
+    spinner.style.display = 'block';
+    title.textContent = 'جارٍ إرسال بياناتك...';
+    text.textContent  = 'يرجى الانتظار، نقوم بحفظ معلوماتك بشكل آمن';
+    btn.style.display = 'none';
+    bar.style.width   = '0%';
+  } else if (state === 'success') {
+    spinner.style.display = 'none';
+    bar.style.width = '100%';
+    const modalContent = document.getElementById('sendModalContent');
+    modalContent.innerHTML = `
+      <div class="send-modal-icon">🎉</div>
+      <div class="send-modal-title" style="color:var(--green)">تم الإرسال بنجاح!</div>
+      <div class="send-modal-text">
+        تلقينا جميع معلوماتك ومستنداتك.<br>
+        سيتواصل معك المحاسب مصطفى محاميد خلال يومي عمل.
+      </div>
+      <button class="send-modal-btn" style="display:block;background:linear-gradient(135deg,var(--green),#059669);color:white"
+        onclick="closeSendModal()">حسناً، شكراً! ✓</button>
+    `;
+  }
+}
+
+function animateSendProgress() {
+  const bar = document.getElementById('sendProgressBar');
+  if (!bar) return;
+  let w = 0;
+  const targets = [30, 60, 80, 90];
+  let ti = 0;
+  const step = () => {
+    if (ti >= targets.length) return;
+    const target = targets[ti++];
+    const dur = 400 + Math.random() * 300;
+    const start = performance.now();
+    const from = w;
+    const animate = (now) => {
+      const p = Math.min((now - start) / dur, 1);
+      w = from + (target - from) * p;
+      bar.style.width = w + '%';
+      if (p < 1) requestAnimationFrame(animate);
+      else setTimeout(step, 200 + Math.random() * 400);
+    };
+    requestAnimationFrame(animate);
+  };
+  step();
+}
+
+function closeSendModal() {
+  document.getElementById('sendModal').classList.remove('show');
+  // Show success page
+  document.getElementById('mainForm').style.display = 'none';
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('successPage').classList.add('show');
+  window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
 // SYNC MARRIED FROM STEP 1 TO STEP 2
@@ -1473,50 +1587,43 @@ function toggleConditional(id, val) {
 }
 
 // ── Populate year checkboxes in step 4 fields ──
-function populateYearCheckboxes(groupId, hiddenId) {
-  const group = document.getElementById(groupId);
-  if (!group) return;
-  const hidden = document.getElementById(hiddenId);
-  const currentSelected = hidden ? hidden.value.split(',').map(y=>y.trim()).filter(Boolean) : [];
-
-  group.innerHTML = '';
+// Render per-year amount inputs for step 4 fields
+function renderPerYearAmounts(containerId, fieldPrefix, placeholder) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
   const years = selectedYears.length > 0 ? [...selectedYears].sort((a,b)=>b-a) : ['2025','2024','2023','2022','2021','2020'];
-
-  years.forEach(yr => {
-    const isSelected = currentSelected.includes(String(yr));
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = yr;
-    btn.style.cssText = `
-      padding:8px 16px;border-radius:8px;font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;
-      cursor:pointer;transition:all 0.2s;border:1.5px solid var(--gray-light);
-      background:${isSelected?'var(--navy)':'var(--off-white)'};
-      color:${isSelected?'white':'var(--navy)'};`;
-    btn.onclick = function() {
-      const current = hidden.value.split(',').map(y=>y.trim()).filter(Boolean);
-      const idx = current.indexOf(String(yr));
-      if (idx >= 0) {
-        current.splice(idx, 1);
-        btn.style.background = 'var(--off-white)';
-        btn.style.color = 'var(--navy)';
-        btn.style.borderColor = 'var(--gray-light)';
-      } else {
-        current.push(String(yr));
-        btn.style.background = 'var(--navy)';
-        btn.style.color = 'white';
-        btn.style.borderColor = 'var(--navy)';
-      }
-      hidden.value = current.join(',');
-    };
-    group.appendChild(btn);
-  });
+  container.innerHTML = years.map(yr => `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;
+      background:var(--off-white);border:1.5px solid var(--gray-light);
+      border-radius:10px;padding:10px 14px;">
+      <div style="background:linear-gradient(135deg,var(--gold),var(--gold-light));
+        color:var(--navy);font-weight:900;font-size:13px;padding:4px 12px;
+        border-radius:6px;white-space:nowrap;min-width:52px;text-align:center">${yr}</div>
+      <input type="number" id="${fieldPrefix}-${yr}" placeholder="${placeholder}"
+        style="flex:1;padding:8px 12px;border:1.5px solid var(--gray-light);border-radius:8px;
+        font-family:'Cairo',sans-serif;font-size:14px;color:var(--text);
+        background:var(--white);outline:none;direction:ltr;text-align:left;"
+        oninput="updatePerYearSummary('${fieldPrefix}')">
+      <span style="font-size:13px;color:var(--gray);white-space:nowrap">₪</span>
+    </div>`).join('');
 }
 
-// Override toggleConditional for step 4 fields to also populate year buttons
-function toggleConditionalWithYears(id, val, groupId, hiddenId) {
+function updatePerYearSummary(fieldPrefix) {
+  // keeps a JSON summary in a hidden field for form submission
+  const years = selectedYears.length > 0 ? [...selectedYears].sort((a,b)=>b-a) : ['2025','2024','2023','2022','2021','2020'];
+  const result = {};
+  years.forEach(yr => {
+    const val = document.getElementById(`${fieldPrefix}-${yr}`)?.value;
+    if (val && parseFloat(val) > 0) result[yr] = parseFloat(val);
+  });
+  const hidden = document.getElementById(`${fieldPrefix}-data`);
+  if (hidden) hidden.value = JSON.stringify(result);
+}
+
+function toggleConditionalWithYears(id, val, containerId, fieldPrefix, placeholder) {
   toggleConditional(id, val);
   if (val === 'نعم') {
-    setTimeout(() => populateYearCheckboxes(groupId, hiddenId), 50);
+    setTimeout(() => renderPerYearAmounts(containerId, fieldPrefix, placeholder), 50);
   }
 }
 
