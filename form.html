@@ -1465,7 +1465,8 @@ async function analyze106(input, cardId) {
     const base64 = await fileToBase64(file);
     const isPDF = file.type === 'application/pdf';
     const mediaType = isPDF ? 'application/pdf' : file.type;
-const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\n\nחשוב מאוד — הבחנה בין מספרים:\n- "מספר זהות" של העובד = 9 ספרות, מופיע ליד שם העובד בראש הטופס (לדוגמה: 301470019). זה מה שאנחנו רוצים ב-idNumber.\n- "תיק ניכויים" = מספר של המעסיק, לא של העובד — אל תשים אותו ב-idNumber.\n- שדה 158 או 172 = הכנסה ברוטו (המספר הגדול, לדוגמה: 350,994)\n- שדה 042 = מס הכנסה שנוכה (לדוגמה: 60,601)\n- שדה 045 או 086 = הפרשת עובד לפנסיה\n- שדה 246 = הפרשת מעביד\n- שדה 048 = ביטוח לאומי\n- שם מעסיק, שנת מס, חודשי עבודה, נקודות זיכוי\n\nהחזר מספרים כמספרים בלבד ללא פסיקים. JSON בלבד:\n{"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"employeePension":null,"employerPension":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"idNumber":null,"notes":null}';    const content = isPDF
+    const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\n\nחשוב מאוד — הבחנה בין מספרים:\n- "מספר זהות" של העובד = 9 ספרות המופיעות ליד שם העובד בראש הטופס (לדוגמה: 301470019). זה idNumber.\n- "תיק ניכויים" = מספר של המעסיק, לא של העובד — אל תשים אותו ב-idNumber.\n- שדה 158 או 172 = הכנסה ברוטו (המספר הגדול)\n- שדה 042 = מס הכנסה שנוכה\n- שדה 045 או 086 = הפרשת עובד לקצבה/גמל (employeePension) — חשוב לחישוב זיכוי 35%\n- שדה 246 = הפרשת מעביד לקצבה (employerPension)\n- שדה 048 = ביטוח לאומי\n- שם מעסיק, שנת מס, חודשי עבודה, נקודות זיכוי\n\nהחזר מספרים כמספרים בלבד ללא פסיקים (לדוגמה: 350994 ולא 350,994). JSON בלבד:\n{"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"employeePension":null,"employerPension":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"idNumber":null,"notes":null}';
+    const content = isPDF
       ? [{type:'document',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]
       : [{type:'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}];
     const resp = await fetch('https://analyze-106.mostafa-zuhdi1.workers.dev', {
@@ -1504,13 +1505,14 @@ const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח
     const yr = result.taxYear ? String(result.taxYear).trim() : null;
     if (yr) {
       if (!window._extracted106PerYear[yr]) {
-        window._extracted106PerYear[yr] = {grossIncome:0, taxDeducted:0, employer:'', workMonths:12, creditPoints:0};
+        window._extracted106PerYear[yr] = {grossIncome:0, taxDeducted:0, employer:'', workMonths:12, creditPoints:0, employeePension:0};
       }
-      if (result.grossIncome)  window._extracted106PerYear[yr].grossIncome  += parseN(result.grossIncome);
-      if (result.taxDeducted)  window._extracted106PerYear[yr].taxDeducted  += parseN(result.taxDeducted);
-      if (result.employer)     window._extracted106PerYear[yr].employer      = result.employer || '';
-      if (result.workMonths)   window._extracted106PerYear[yr].workMonths    = parseInt(result.workMonths) || 12;
-      if (result.creditPoints) window._extracted106PerYear[yr].creditPoints  = parseN(result.creditPoints);
+      if (result.grossIncome)     window._extracted106PerYear[yr].grossIncome     += parseN(result.grossIncome);
+      if (result.taxDeducted)     window._extracted106PerYear[yr].taxDeducted     += parseN(result.taxDeducted);
+      if (result.employer)        window._extracted106PerYear[yr].employer         = result.employer || '';
+      if (result.workMonths)      window._extracted106PerYear[yr].workMonths       = parseInt(result.workMonths) || 12;
+      if (result.creditPoints)    window._extracted106PerYear[yr].creditPoints     = parseN(result.creditPoints);
+      if (result.employeePension) window._extracted106PerYear[yr].employeePension += parseN(result.employeePension);
     }
     renderAnalysisCard(card, result);
     // Trigger unemployment question if < 12 months
@@ -1646,7 +1648,8 @@ async function analyze106Spouse(input, cardId, year) {
     const base64 = await fileToBase64(file);
     const isPDF = file.type === 'application/pdf';
     const mediaType = isPDF ? 'application/pdf' : file.type;
-const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\n\nחשוב: "מספר זהות" של העובד הוא 9 ספרות ליד שמו בראש הטופס — לא "תיק ניכויים" של המעסיק.\nשדה 158/172 = הכנסה ברוטו. שדה 042 = מס הכנסה. שדה 048 = ביטוח לאומי.\nהחזר מספרים ללא פסיקים. JSON בלבד:\n{"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"idNumber":null,"notes":null}';    const contentArr = isPDF
+    const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\n\nחשוב: "מספר זהות" של העובד = 9 ספרות ליד שמו בראש הטופס — לא "תיק ניכויים" של המעסיק.\nשדה 158/172 = הכנסה ברוטו. שדה 042 = מס הכנסה. שדה 045/086 = הפרשת עובד לקצבה (employeePension, חשוב לזיכוי 35%). שדה 048 = ביטוח לאומי.\nהחזר מספרים ללא פסיקים. JSON בלבד:\n{"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"employeePension":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"idNumber":null,"notes":null}';
+    const contentArr = isPDF
       ? [{type:'document',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]
       : [{type:'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}];
     const resp = await fetch('https://analyze-106.mostafa-zuhdi1.workers.dev', {
@@ -1669,11 +1672,12 @@ const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח
     const yr = result.taxYear ? String(result.taxYear).trim() : year;
     if (yr) {
       if (!window._extracted106SpousePerYear[yr]) {
-        window._extracted106SpousePerYear[yr] = {grossIncome:0,taxDeducted:0,workMonths:12};
+        window._extracted106SpousePerYear[yr] = {grossIncome:0,taxDeducted:0,workMonths:12,employeePension:0};
       }
-      if (result.grossIncome) window._extracted106SpousePerYear[yr].grossIncome += parseN(result.grossIncome);
-      if (result.taxDeducted) window._extracted106SpousePerYear[yr].taxDeducted += parseN(result.taxDeducted);
-      if (result.workMonths)  window._extracted106SpousePerYear[yr].workMonths   = parseInt(result.workMonths)||12;
+      if (result.grossIncome)     window._extracted106SpousePerYear[yr].grossIncome     += parseN(result.grossIncome);
+      if (result.taxDeducted)     window._extracted106SpousePerYear[yr].taxDeducted     += parseN(result.taxDeducted);
+      if (result.workMonths)      window._extracted106SpousePerYear[yr].workMonths       = parseInt(result.workMonths)||12;
+      if (result.employeePension) window._extracted106SpousePerYear[yr].employeePension += parseN(result.employeePension);
     }
     renderAnalysisCard(card, result);
     if (result.workMonths) checkUnemploymentFromFile(result.workMonths);
@@ -1857,44 +1861,61 @@ function calculateResult() {
 
     // ── الحساب الصحيح لكل شخص: ──
     // 1. الضريبة المستحقة = calcTaxByBrackets(فرع 158)
-    // 2. قيمة النقاط = נקודות × שווי נקודה
-    // 3. الضريبة الفعلية = max(0, المستحقة − قيمة النقاط)
-    // 4. الاسترجاع = فرع 42 المدفوع − الضريبة الفعلية
-    //    (لا يتجاوز ما دُفع، ولا يكون سالباً)
+    // 2. זיכוי נקודות = נקודות × שווי נקודה
+    // 3. זיכוי פנסיה סעיף 45א = 35% × שדה 045/086 (עד 7% מהכנסה, תקרה 8,700/חודש)
+    // 4. الضريبة الفعلية = max(0, المستحقة − זיכוי נקודות − זיכוי פנסיה)
+    // 5. الاسترجاع = max(0, فرع 42 − الضريبة الفعلية)
+
+    const PENSION_CREDIT_INCOME_CAP_MONTHLY = 8700; // תקרת הכנסה לזיכוי פנסיה
+    const PENSION_CREDIT_RATE = 0.35;               // 35% זיכוי על ההפקדה המזכה
+    const PENSION_EMPLOYEE_RATE_CAP = 0.07;         // עד 7% מההכנסה
 
     const mainCredit = Math.round(mainPoints * (mainMonths/12) * yPV);
     const mainTax42  = yMain ? Math.round(yMain.taxDeducted) : 0;
     const mainGross158 = yMain ? Math.round(yMain.grossIncome) : 0;
+    const mainPension045 = yMain ? Math.round(yMain.employeePension || 0) : 0;
+
+    // זיכוי פנסיה — סעיף 45א
+    const mainPensionIncomeCap = Math.round(PENSION_CREDIT_INCOME_CAP_MONTHLY * mainMonths);
+    const mainPensionEligibleBase = Math.min(mainGross158, mainPensionIncomeCap);
+    const mainPensionMaxEligible = Math.round(mainPensionEligibleBase * PENSION_EMPLOYEE_RATE_CAP);
+    const mainPensionEligible = Math.min(mainPension045, mainPensionMaxEligible);
+    const mainPensionCredit = Math.round(mainPensionEligible * PENSION_CREDIT_RATE);
+
     let mainRefund = 0;
 
     if (mainTax42 > 0 && mainGross158 > 0) {
-      // الحساب الكامل
       const mainTaxDue = Math.round(calcTaxByBrackets(mainGross158, yr) * (mainMonths/12));
-      const mainTaxAfterCredit = Math.max(0, mainTaxDue - mainCredit);
+      const mainTaxAfterCredit = Math.max(0, mainTaxDue - mainCredit - mainPensionCredit);
       mainRefund = Math.max(0, mainTax42 - mainTaxAfterCredit);
     } else if (mainTax42 > 0) {
-      // فقط فرع 42 — استخدم النقاط مقارنةً بما دُفع
-      mainRefund = Math.min(mainTax42, mainCredit);
+      mainRefund = Math.min(mainTax42, mainCredit + mainPensionCredit);
     } else if (!hasFileData) {
-      // لا يوجد ملف 106 — تقدير
       mainRefund = Math.round((mainPoints-(isWoman?2.75:2.25)) * yPV * (mainMonths/12));
     }
-    // إذا mainTax42 === 0 وملف موجود → لا استرجاع
 
     // ── Spouse calculation ──
     const spouseCredit = married && spouseWorks
       ? Math.round(spousePoints * (spouseMonths/12) * yPV) : 0;
     const spouseTax42 = ySpouse ? Math.round(ySpouse.taxDeducted) : 0;
     const spouseGross158 = ySpouse ? Math.round(ySpouse.grossIncome) : 0;
+    const spousePension045 = ySpouse ? Math.round(ySpouse.employeePension || 0) : 0;
+
+    const spousePensionIncomeCap = Math.round(PENSION_CREDIT_INCOME_CAP_MONTHLY * spouseMonths);
+    const spousePensionEligibleBase = Math.min(spouseGross158, spousePensionIncomeCap);
+    const spousePensionMaxEligible = Math.round(spousePensionEligibleBase * PENSION_EMPLOYEE_RATE_CAP);
+    const spousePensionEligible = Math.min(spousePension045, spousePensionMaxEligible);
+    const spousePensionCredit = Math.round(spousePensionEligible * PENSION_CREDIT_RATE);
+
     let spouseRefund = 0;
 
     if (married && spouseWorks) {
       if (spouseTax42 > 0 && spouseGross158 > 0) {
         const spouseTaxDue = Math.round(calcTaxByBrackets(spouseGross158, yr) * (spouseMonths/12));
-        const spouseTaxAfterCredit = Math.max(0, spouseTaxDue - spouseCredit);
+        const spouseTaxAfterCredit = Math.max(0, spouseTaxDue - spouseCredit - spousePensionCredit);
         spouseRefund = Math.max(0, spouseTax42 - spouseTaxAfterCredit);
       } else if (spouseTax42 > 0) {
-        spouseRefund = Math.min(spouseTax42, spouseCredit);
+        spouseRefund = Math.min(spouseTax42, spouseCredit + spousePensionCredit);
       } else if (!hasSpouseData) {
         spouseRefund = Math.round((spousePoints-(spouseIsWoman?2.75:2.25)) * yPV * (spouseMonths/12));
       }
@@ -1907,10 +1928,14 @@ function calculateResult() {
       mainGross: mainGross158,
       mainTax: mainTax42,
       mainCredit,
+      mainPensionCredit,
+      mainPension045,
       mainRefund,
       spouseGross: spouseGross158,
       spouseTax: spouseTax42,
       spouseCredit,
+      spousePensionCredit,
+      spousePension045,
       spouseRefund,
       total: yearTotal
     });
@@ -1918,20 +1943,18 @@ function calculateResult() {
     // Add year detail to main details
     if (mainGross158 > 0 || mainTax42 > 0) {
       const mainTaxDue2 = mainGross158>0 ? Math.round(calcTaxByBrackets(mainGross158,yr)*(mainMonths/12)) : 0;
-      const mainTaxAfter2 = Math.max(0, mainTaxDue2 - mainCredit);
       details.push({
         label: `📅 ${yr} — مقدم الطلب`,
         points: `استرجاع: ${mainRefund.toLocaleString()} ₪`,
-        note: `158: ${mainGross158.toLocaleString()} ₪ | ضريبة مستحقة: ${mainTaxDue2.toLocaleString()} ₪ | زيכوי: ${mainCredit.toLocaleString()} ₪ | 042: ${mainTax42.toLocaleString()} ₪`
+        note: `158: ${mainGross158.toLocaleString()} ₪ | ضريبة مستحقة: ${mainTaxDue2.toLocaleString()} ₪ | זיכוי נק': ${mainCredit.toLocaleString()} ₪${mainPensionCredit>0?' | זיכוי פנסיה: '+mainPensionCredit.toLocaleString()+' ₪':''} | 042: ${mainTax42.toLocaleString()} ₪`
       });
     }
     if ((spouseGross158 > 0 || spouseTax42 > 0) && married && spouseWorks) {
       const spouseTaxDue2 = spouseGross158>0 ? Math.round(calcTaxByBrackets(spouseGross158,yr)*(spouseMonths/12)) : 0;
-      const spouseTaxAfter2 = Math.max(0, spouseTaxDue2 - spouseCredit);
       details.push({
         label: `📅 ${yr} — الزوجة/الزوج`,
         points: `استرجاع: ${spouseRefund.toLocaleString()} ₪`,
-        note: `158: ${spouseGross158.toLocaleString()} ₪ | ضريبة مستحقة: ${spouseTaxDue2.toLocaleString()} ₪ | זיכוי: ${spouseCredit.toLocaleString()} ₪ | 042: ${spouseTax42.toLocaleString()} ₪`
+        note: `158: ${spouseGross158.toLocaleString()} ₪ | ضريبة مستحقة: ${spouseTaxDue2.toLocaleString()} ₪ | זיכוי נק': ${spouseCredit.toLocaleString()} ₪${spousePensionCredit>0?' | זיכוי פנסיה: '+spousePensionCredit.toLocaleString()+' ₪':''} | 042: ${spouseTax42.toLocaleString()} ₪`
       });
     }
   }
