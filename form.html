@@ -1465,8 +1465,7 @@ async function analyze106(input, cardId) {
     const base64 = await fileToBase64(file);
     const isPDF = file.type === 'application/pdf';
     const mediaType = isPDF ? 'application/pdf' : file.type;
-    const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\nחפש: שדה 158/172 הכנסה ברוטו, שדה 042 מס הכנסה שנוכה, שדה 045 הפרשת עובד לפנסיה, שדה 246 הפרשת מעביד, שדה 048 ביטוח לאומי, שם מעסיק, שנת מס, חודשי עבודה, נקודות זיכוי, מספר זהות של העובד.\nהחזר מספרים כמספרים בלבד ללא פסיקים (לדוגמה: 350994 ולא 350,994). JSON בלבד: {"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"employeePension":null,"employerPension":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"idNumber":null,"notes":null}';
-    const content = isPDF
+const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\n\nחשוב מאוד — הבחנה בין מספרים:\n- "מספר זהות" של העובד = 9 ספרות, מופיע ליד שם העובד בראש הטופס (לדוגמה: 301470019). זה מה שאנחנו רוצים ב-idNumber.\n- "תיק ניכויים" = מספר של המעסיק, לא של העובד — אל תשים אותו ב-idNumber.\n- שדה 158 או 172 = הכנסה ברוטו (המספר הגדול, לדוגמה: 350,994)\n- שדה 042 = מס הכנסה שנוכה (לדוגמה: 60,601)\n- שדה 045 או 086 = הפרשת עובד לפנסיה\n- שדה 246 = הפרשת מעביד\n- שדה 048 = ביטוח לאומי\n- שם מעסיק, שנת מס, חודשי עבודה, נקודות זיכוי\n\nהחזר מספרים כמספרים בלבד ללא פסיקים. JSON בלבד:\n{"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"employeePension":null,"employerPension":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"idNumber":null,"notes":null}';    const content = isPDF
       ? [{type:'document',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]
       : [{type:'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}];
     const resp = await fetch('https://analyze-106.mostafa-zuhdi1.workers.dev', {
@@ -1647,8 +1646,7 @@ async function analyze106Spouse(input, cardId, year) {
     const base64 = await fileToBase64(file);
     const isPDF = file.type === 'application/pdf';
     const mediaType = isPDF ? 'application/pdf' : file.type;
-    const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\nחפש: שדה 158/172 הכנסה ברוטו, שדה 042 מס הכנסה שנוכה, שדה 045 הפרשת עובד לפנסיה, שדה 048 ביטוח לאומי, שם מעסיק, שנת מס, חודשי עבודה, נקודות זיכוי, מספר זהות.\nהחזר מספרים ללא פסיקים. JSON בלבד: {"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"idNumber":null,"notes":null}';
-    const contentArr = isPDF
+const prompt = 'אתה מומחה לניתוח טופס 106 ישראלי. נתח את הטופס המצורף ותחזיר JSON בלבד.\n\nחשוב: "מספר זהות" של העובד הוא 9 ספרות ליד שמו בראש הטופס — לא "תיק ניכויים" של המעסיק.\nשדה 158/172 = הכנסה ברוטו. שדה 042 = מס הכנסה. שדה 048 = ביטוח לאומי.\nהחזר מספרים ללא פסיקים. JSON בלבד:\n{"employer":null,"taxYear":null,"grossIncome":null,"taxDeducted":null,"bituahLeumi":null,"workMonths":null,"creditPoints":null,"idNumber":null,"notes":null}';    const contentArr = isPDF
       ? [{type:'document',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}]
       : [{type:'image',source:{type:'base64',media_type:mediaType,data:base64}},{type:'text',text:prompt}];
     const resp = await fetch('https://analyze-106.mostafa-zuhdi1.workers.dev', {
