@@ -455,11 +455,8 @@ body {
         <input type="text" id="name" placeholder="مثال: محمد أحمد">
         <div class="error-msg">هذا الحقل إلزامي</div>
       </div>
-      <div class="field" id="f-phone">
-        <label><span class="req">*</span> رقم الهاتف</label>
-        <input type="tel" id="phone" placeholder="05X-XXX-XXXX">
-        <div class="error-msg">أدخل رقم هاتف صحيح</div>
-      </div>
+      <!-- phone moved to Step 7 -->
+      <input type="hidden" id="phone" value="">
       <div class="field">
         <label>البريد الإلكتروني <span style="color:var(--gray);font-weight:500">(اختياري)</span></label>
         <input type="email" id="email" placeholder="example@email.com">
@@ -910,6 +907,21 @@ body {
     </div>
 
     <div class="card">
+    <div class="card">
+      <div class="field" id="f-phone-step7" style="margin-bottom:20px">
+        <label style="font-size:15px;font-weight:800;color:var(--navy)">
+          <span class="req">*</span> رقم هاتفك للتواصل
+          <span class="hint">أدخل رقم هاتفك لنتمكن من التواصل معك</span>
+        </label>
+        <input type="tel" id="phone-step7" placeholder="05X-XXX-XXXX"
+          style="width:100%;padding:13px 16px;border:1.5px solid var(--gray-light);border-radius:10px;
+          font-family:'Cairo',sans-serif;font-size:15px;color:var(--text);background:var(--off-white);
+          outline:none;direction:ltr;text-align:left;"
+          oninput="document.getElementById('phone').value=this.value">
+        <div id="phone-step7-error" style="font-size:12px;color:var(--red);margin-top:5px;font-weight:600;display:none">
+          يرجى إدخال رقم هاتف صحيح للمتابعة
+        </div>
+      </div>
       <div class="result-btns">
         <button class="btn-submit" onclick="submitForm()">✅ إرسال الطلب للمراجعة</button>
         <a href="https://wa.me/972500000000" class="btn-wa" target="_blank">
@@ -1003,12 +1015,10 @@ function validateStep(step) {
   let valid = true;
   if (step === 1) {
     const name  = document.getElementById('name').value.trim();
-    const phone = document.getElementById('phone').value.trim();
     const birth = document.getElementById('birthyear').value;
     const married = document.getElementById('married').value === 'نعم';
     const marriageYear = document.getElementById('marriage-year')?.value;
     setFieldError('f-name', !name);
-    setFieldError('f-phone', !phone);
     setFieldError('f-birthyear', !birth || birth < 1940 || birth > 2005);
     if (married && !marriageYear) {
       alert('يرجى إدخال سنة الزواج للمتابعة');
@@ -1016,7 +1026,7 @@ function validateStep(step) {
       if (el) { el.style.borderColor='var(--red)'; el.focus(); }
       return false;
     }
-    valid = name && phone && birth && birth >= 1940 && birth <= 2005;
+    valid = name && birth && birth >= 1940 && birth <= 2005;
   }
   if (step === 3) {
     if (selectedYears.length === 0) {
@@ -1057,6 +1067,18 @@ async function submitForm() {
   const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzALqS6dXT09gmfICGjGSj3QSJWJprn2y6n5n7IKqelKlrnvywqkMV6fHHOHXPHrkTjIA/exec';
 
   // Show loading state on button
+  // Validate phone in step 7
+  const phoneInput = document.getElementById('phone-step7');
+  const phoneVal = phoneInput ? phoneInput.value.trim() : '';
+  const phoneErr = document.getElementById('phone-step7-error');
+  if (!phoneVal || phoneVal.length < 9) {
+    if (phoneErr) phoneErr.style.display = 'block';
+    if (phoneInput) { phoneInput.style.borderColor = 'var(--red)'; phoneInput.focus(); }
+    return;
+  }
+  if (phoneErr) phoneErr.style.display = 'none';
+  document.getElementById('phone').value = phoneVal;
+
   const btn = document.querySelector('.btn-submit');
   if (btn) { btn.textContent = '⏳ جارٍ الإرسال...'; btn.disabled = true; }
 
@@ -1159,12 +1181,18 @@ function syncMarriedToStep2(val) {
     if (note) note.style.display = 'block';
     onStatusChange('متزوج/ة');
   } else {
-    // If not married: remove متزوج/ة option, re-enable أعزب
+    // If not married: reset spouse fields, remove متزوج/ة option
     select.value = '';
     if (optSingle) optSingle.disabled = false;
     if (optMarried) { optMarried.style.display = 'none'; }
     if (note) note.style.display = 'none';
+    // Reset spouse-works so step 3 doesn't show spouse 106 section
+    const spouseWorksEl = document.getElementById('spouse-works');
+    if (spouseWorksEl) spouseWorksEl.value = '';
+    const spouseNote = document.getElementById('spouse-works-note');
+    if (spouseNote) spouseNote.style.display = 'none';
     onStatusChange('');
+    renderYearCards();
   }
 }
 
@@ -1253,8 +1281,10 @@ function renderYearCards() {
   const genCard = document.getElementById('general-questions-card');
   if (!container) return;
 
+  const marriedVal = document.getElementById('married')?.value;
+  const isMarried = marriedVal === 'نعم';
   const marriageYear = parseInt(document.getElementById('marriage-year')?.value) || 0;
-  const spouseWorks = document.getElementById('spouse-works')?.value === 'نعم';
+  const spouseWorks = isMarried && document.getElementById('spouse-works')?.value === 'نعم';
   const sorted = [...selectedYears].sort((a,b) => b - a);
 
   if (sorted.length === 0) {
@@ -1748,7 +1778,7 @@ function calculateResult() {
     : 2904;
 
   const married    = document.getElementById('married').value === 'نعم';
-  const spouseWorks= document.getElementById('spouse-works')?.value === 'نعم';
+  const spouseWorks= married && document.getElementById('spouse-works')?.value === 'نعم';
   const divorced   = document.getElementById('divorce').value === 'نعم';
   const childCount = parseInt(document.getElementById('children').value) || 0;
   const checkYear  = selectedYears.length > 0 ? Math.max(...selectedYears.map(Number)) : new Date().getFullYear();
