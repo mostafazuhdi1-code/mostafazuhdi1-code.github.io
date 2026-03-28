@@ -1296,7 +1296,8 @@ function renderYearCards() {
   if (genCard) genCard.style.display = 'block';
 
   container.innerHTML = sorted.map(year => {
-    const needSpouse = spouseWorks && marriageYear > 0 && parseInt(year) >= marriageYear;
+    // Show spouse 106 for all years when spouse works; if marriage year entered, filter years >= marriageYear
+    const needSpouse = spouseWorks && (marriageYear === 0 || parseInt(year) >= marriageYear);
     return `
     <div class="card" style="border-right:4px solid var(--gold)">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
