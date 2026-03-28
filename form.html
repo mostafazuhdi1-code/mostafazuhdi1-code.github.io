@@ -647,11 +647,16 @@ body {
       <div class="field">
         <label>هل تلقيت دمي بيطلا (بطالة)؟</label>
         <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'bitula','نعم');toggleConditional('bitula-fields','نعم')">✅ نعم</button>
+          <button class="yn-btn yes" onclick="selectYN(this,'bitula','نعم');toggleConditionalWithYears('bitula-fields','نعم','bitula-years-group','bitula-years')">✅ نعم</button>
           <button class="yn-btn no" onclick="selectYN(this,'bitula','لا');toggleConditional('bitula-fields','لا')">❌ لا</button>
         </div>
         <input type="hidden" id="bitula">
         <div class="conditional" id="bitula-fields">
+          <div class="field" style="margin-top:10px">
+            <label>في أي سنة/سنوات؟ <span style="color:var(--gray);font-size:12px;font-weight:500">(اختر كل السنوات المنطبقة)</span></label>
+            <div id="bitula-years-group" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"></div>
+            <input type="hidden" id="bitula-years">
+          </div>
           <div class="field">
             <label>المبلغ التقريبي (بالشيكل)</label>
             <input type="number" id="bitula-amount" placeholder="مثال: 8000">
@@ -664,11 +669,16 @@ body {
       <div class="field">
         <label>هل تلقيت دمي ليدا (إجازة ولادة)؟</label>
         <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'lida','نعم');toggleConditional('lida-fields','نعم')">✅ نعم</button>
+          <button class="yn-btn yes" onclick="selectYN(this,'lida','نعم');toggleConditionalWithYears('lida-fields','نعم','lida-years-group','lida-years')">✅ نعم</button>
           <button class="yn-btn no" onclick="selectYN(this,'lida','لا');toggleConditional('lida-fields','لا')">❌ لا</button>
         </div>
         <input type="hidden" id="lida">
         <div class="conditional" id="lida-fields">
+          <div class="field" style="margin-top:10px">
+            <label>في أي سنة/سنوات؟ <span style="color:var(--gray);font-size:12px;font-weight:500">(اختر كل السنوات المنطبقة)</span></label>
+            <div id="lida-years-group" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"></div>
+            <input type="hidden" id="lida-years">
+          </div>
           <div class="field">
             <label>المبلغ التقريبي (بالشيكل)</label>
             <input type="number" id="lida-amount" placeholder="مثال: 15000">
@@ -681,11 +691,16 @@ body {
       <div class="field">
         <label>هل تلقيت مخصصات من بيطوح لئومي؟</label>
         <div class="yn-group">
-          <button class="yn-btn yes" onclick="selectYN(this,'bituah','نعم');toggleConditional('bituah-fields','نعم')">✅ نعم</button>
+          <button class="yn-btn yes" onclick="selectYN(this,'bituah','نعم');toggleConditionalWithYears('bituah-fields','نعم','bituah-years-group','bituah-years')">✅ نعم</button>
           <button class="yn-btn no" onclick="selectYN(this,'bituah','لا');toggleConditional('bituah-fields','لا')">❌ لا</button>
         </div>
         <input type="hidden" id="bituah">
         <div class="conditional" id="bituah-fields">
+          <div class="field" style="margin-top:10px">
+            <label>في أي سنة/سنوات؟ <span style="color:var(--gray);font-size:12px;font-weight:500">(اختر كل السنوات المنطبقة)</span></label>
+            <div id="bituah-years-group" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"></div>
+            <input type="hidden" id="bituah-years">
+          </div>
           <div class="field">
             <label>نوع المخصص</label>
             <input type="text" id="bituah-type" placeholder="مثال: مخصص أطفال، معاش عجز...">
@@ -1004,6 +1019,14 @@ function goNext(from) {
   if (!validateStep(from)) return;
   if (from === 6) calculateResult();
   goToStep(from + 1);
+  // Repopulate step 4 year buttons when entering step 4
+  if (from + 1 === 4) {
+    setTimeout(() => {
+      if (document.getElementById('bitula').value === 'نعم') populateYearCheckboxes('bitula-years-group','bitula-years');
+      if (document.getElementById('lida').value === 'نعم')   populateYearCheckboxes('lida-years-group','lida-years');
+      if (document.getElementById('bituah').value === 'نعم') populateYearCheckboxes('bituah-years-group','bituah-years');
+    }, 100);
+  }
 }
 
 function goPrev(from) {
@@ -1027,6 +1050,26 @@ function validateStep(step) {
       return false;
     }
     valid = name && birth && birth >= 1940 && birth <= 2005;
+  }
+  if (step === 2) {
+    const childUnder18 = document.getElementById('child-under18').value;
+    if (childUnder18 === 'نعم') {
+      const childCount = document.getElementById('children').value;
+      if (!childCount) {
+        alert('يرجى تحديد عدد الأولاد');
+        return false;
+      }
+      const count = childCount === '5+' ? 5 : parseInt(childCount);
+      for (let i = 1; i <= count; i++) {
+        const birthEl = document.getElementById(`child-birth-${i}`);
+        const birthVal = birthEl ? birthEl.value : '';
+        if (!birthVal || parseInt(birthVal) < 1990 || parseInt(birthVal) > 2025) {
+          alert(`يرجى إدخال سنة ميلاد صحيحة للولد/البنت رقم ${i}`);
+          if (birthEl) { birthEl.style.borderColor = 'var(--red)'; birthEl.focus(); }
+          return false;
+        }
+      }
+    }
   }
   if (step === 3) {
     if (selectedYears.length === 0) {
@@ -1116,8 +1159,11 @@ async function submitForm() {
     // Step 4
     unemployment: document.getElementById('unemployment').value,
     bitula: document.getElementById('bitula').value,
+    bitulaYears: document.getElementById('bitula-years')?.value || '—',
     lida: document.getElementById('lida').value,
+    lidaYears: document.getElementById('lida-years')?.value || '—',
     bituah: document.getElementById('bituah').value,
+    bituahYears: document.getElementById('bituah-years')?.value || '—',
     // Step 5
     donation: document.getElementById('donation').value,
     health: document.getElementById('health').value,
@@ -1424,6 +1470,54 @@ function toggleConditional(id, val) {
   if (!el) return;
   if (val === 'نعم') el.classList.add('show');
   else el.classList.remove('show');
+}
+
+// ── Populate year checkboxes in step 4 fields ──
+function populateYearCheckboxes(groupId, hiddenId) {
+  const group = document.getElementById(groupId);
+  if (!group) return;
+  const hidden = document.getElementById(hiddenId);
+  const currentSelected = hidden ? hidden.value.split(',').map(y=>y.trim()).filter(Boolean) : [];
+
+  group.innerHTML = '';
+  const years = selectedYears.length > 0 ? [...selectedYears].sort((a,b)=>b-a) : ['2025','2024','2023','2022','2021','2020'];
+
+  years.forEach(yr => {
+    const isSelected = currentSelected.includes(String(yr));
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = yr;
+    btn.style.cssText = `
+      padding:8px 16px;border-radius:8px;font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;
+      cursor:pointer;transition:all 0.2s;border:1.5px solid var(--gray-light);
+      background:${isSelected?'var(--navy)':'var(--off-white)'};
+      color:${isSelected?'white':'var(--navy)'};`;
+    btn.onclick = function() {
+      const current = hidden.value.split(',').map(y=>y.trim()).filter(Boolean);
+      const idx = current.indexOf(String(yr));
+      if (idx >= 0) {
+        current.splice(idx, 1);
+        btn.style.background = 'var(--off-white)';
+        btn.style.color = 'var(--navy)';
+        btn.style.borderColor = 'var(--gray-light)';
+      } else {
+        current.push(String(yr));
+        btn.style.background = 'var(--navy)';
+        btn.style.color = 'white';
+        btn.style.borderColor = 'var(--navy)';
+      }
+      hidden.value = current.join(',');
+    };
+    group.appendChild(btn);
+  });
+}
+
+// Override toggleConditional for step 4 fields to also populate year buttons
+function toggleConditionalWithYears(id, val, groupId, hiddenId) {
+  toggleConditional(id, val);
+  if (val === 'نعم') {
+    setTimeout(() => populateYearCheckboxes(groupId, hiddenId), 50);
+  }
 }
 
 // PRIVACY
