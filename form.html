@@ -1374,6 +1374,29 @@ function onSpouseWorksChange(val) {
 let selectedYears = [];
 const ALL_YEARS = ['2025','2024','2023','2022','2021','2020'];
 
+function clearYearData(year) {
+  // إعادة ضبط بيانات سنة محددة عند إلغاء تحديدها
+  const yr = String(year);
+  if (window._extracted106PerYear && window._extracted106PerYear[yr]) {
+    const old = window._extracted106PerYear[yr];
+    // Remove from global totals
+    if (window._extracted106) {
+      window._extracted106.grossIncome = Math.max(0, (window._extracted106.grossIncome||0) - (old.grossIncome||0));
+      window._extracted106.taxDeducted = Math.max(0, (window._extracted106.taxDeducted||0) - (old.taxDeducted||0));
+    }
+    delete window._extracted106PerYear[yr];
+  }
+  if (window._extracted106SpousePerYear && window._extracted106SpousePerYear[yr]) {
+    delete window._extracted106SpousePerYear[yr];
+  }
+  // Clear slot tracking for this year
+  if (window._106ProcessedSlots) {
+    Object.keys(window._106ProcessedSlots).forEach(k => {
+      if (k.includes('-'+yr+'-') || k.endsWith('-'+yr)) delete window._106ProcessedSlots[k];
+    });
+  }
+}
+
 function toggleYear(el, year) {
   el.classList.toggle('selected');
   const box = el.querySelector('.check-box');
@@ -1392,6 +1415,7 @@ function toggleYear(el, year) {
     box.style.background = '';
     box.textContent = '';
     selectedYears = selectedYears.filter(y => y !== year);
+    clearYearData(year); // ← صفّر بيانات هذه السنة
   }
   // sync all-years checkbox
   const allBox = document.getElementById('all-years-box');
@@ -1728,41 +1752,78 @@ async function analyze106(input, cardId, knownYear) {
     const parseN = n => { if(!n) return 0; return parseFloat(String(n).replace(/,/g,'').replace(/[^0-9.]/g,'')) || 0; };
     window._extracted106 = window._extracted106 || {grossIncome:0, taxDeducted:0};
     window._extracted106PerYear = window._extracted106PerYear || {};
+    // Track which card slots have been processed to detect re-uploads
+    window._106ProcessedSlots = window._106ProcessedSlots || {};
 
-    // Global totals — used only for email summary display, NOT for per-year refund calculation
-    // الحساب الفعلي يعتمد على _extracted106PerYear وليس على هذا الإجمالي
-    if (result.grossIncome)  window._extracted106.grossIncome  += parseN(result.grossIncome);
-    if (result.taxDeducted)  window._extracted106.taxDeducted  += parseN(result.taxDeducted);
-    if (result.idNumber)     window._extracted106.idNumber      = result.idNumber;
-    if (result.workMonths)   window._extracted106.workMonths    = result.workMonths;
-    if (result.creditPoints) window._extracted106.creditPoints  = result.creditPoints;
-    if (result.employer)     window._extracted106.employer      = result.employer;
-
-    // Store PER YEAR for individual year calculation
-    // Priority: knownYear (from UI) > AI extracted taxYear > null
-    // This prevents wrong year assignment when AI misreads the year
+    // ── RESET LOGIC: إذا رُفع ملف لنفس الخانة مرة ثانية، نُصفّر بيانات السنة أولاً ──
+    // cardId format: analysis-106-{year}-{employer#}
     const aiYear = result.taxYear ? String(result.taxYear).trim() : null;
     const yr = knownYear ? String(knownYear).trim() : aiYear;
 
-    // If AI returned a different year than known, warn in console but use knownYear
-    if (knownYear && aiYear && aiYear !== String(knownYear).trim()) {
-      console.warn(`⚠️ Year mismatch: UI says ${knownYear}, AI extracted ${aiYear}. Using UI year.`);
-      result.taxYear = knownYear; // show correct year in card
-    }
-
     if (yr) {
+      // Check if this exact card slot was already processed
+      const slotKey = cardId; // e.g. "analysis-106-2025-1"
+      const alreadyProcessed = window._106ProcessedSlots[slotKey];
+
+      if (alreadyProcessed) {
+        // Re-upload of same slot — subtract old values then re-add new ones
+        const old = alreadyProcessed;
+        if (window._extracted106PerYear[yr]) {
+          window._extracted106PerYear[yr].grossIncome     -= old.grossIncome || 0;
+          window._extracted106PerYear[yr].taxDeducted     -= old.taxDeducted || 0;
+          window._extracted106PerYear[yr].employeePension -= old.employeePension || 0;
+          // Clamp to 0 (avoid negative from rounding)
+          window._extracted106PerYear[yr].grossIncome     = Math.max(0, window._extracted106PerYear[yr].grossIncome);
+          window._extracted106PerYear[yr].taxDeducted     = Math.max(0, window._extracted106PerYear[yr].taxDeducted);
+          window._extracted106PerYear[yr].employeePension = Math.max(0, window._extracted106PerYear[yr].employeePension);
+          // Also fix global totals
+          window._extracted106.grossIncome = Math.max(0, window._extracted106.grossIncome - (old.grossIncome||0));
+          window._extracted106.taxDeducted = Math.max(0, window._extracted106.taxDeducted - (old.taxDeducted||0));
+        }
+        console.log(`♻️ Re-upload detected for slot ${slotKey} — corrected year ${yr} data`);
+      }
+
       if (!window._extracted106PerYear[yr]) {
         window._extracted106PerYear[yr] = {grossIncome:0, taxDeducted:0, employer:'', workMonths:12, creditPoints:0, employeePension:0};
       }
-      // Accumulate within same year (multiple employers in same year = sum)
-      if (result.grossIncome)     window._extracted106PerYear[yr].grossIncome     += parseN(result.grossIncome);
-      if (result.taxDeducted)     window._extracted106PerYear[yr].taxDeducted     += parseN(result.taxDeducted);
-      if (result.employer)        window._extracted106PerYear[yr].employer         = result.employer || '';
-      if (result.workMonths)      window._extracted106PerYear[yr].workMonths       = Math.max(window._extracted106PerYear[yr].workMonths||0, parseInt(result.workMonths)||12);
-      if (result.creditPoints)    window._extracted106PerYear[yr].creditPoints     = parseN(result.creditPoints);
-      if (result.employeePension) window._extracted106PerYear[yr].employeePension += parseN(result.employeePension);
+
+      const newGross = parseN(result.grossIncome);
+      const newTax   = parseN(result.taxDeducted);
+      const newPens  = parseN(result.employeePension);
+
+      // Accumulate within same year (multiple employers = sum)
+      window._extracted106PerYear[yr].grossIncome     += newGross;
+      window._extracted106PerYear[yr].taxDeducted     += newTax;
+      if (result.employer)     window._extracted106PerYear[yr].employer      = result.employer || '';
+      if (result.workMonths)   window._extracted106PerYear[yr].workMonths    = Math.max(window._extracted106PerYear[yr].workMonths||0, parseInt(result.workMonths)||12);
+      if (result.creditPoints) window._extracted106PerYear[yr].creditPoints  = parseN(result.creditPoints);
+      window._extracted106PerYear[yr].employeePension += newPens;
+
+      // Remember this slot's contribution so we can undo it on re-upload
+      window._106ProcessedSlots[slotKey] = {grossIncome: newGross, taxDeducted: newTax, employeePension: newPens, year: yr};
+
+      // Global totals (for email summary only)
+      if (result.grossIncome)  window._extracted106.grossIncome  += newGross;
+      if (result.taxDeducted)  window._extracted106.taxDeducted  += newTax;
+      if (result.idNumber)     window._extracted106.idNumber      = result.idNumber;
+      if (result.workMonths)   window._extracted106.workMonths    = result.workMonths;
+      if (result.creditPoints) window._extracted106.creditPoints  = result.creditPoints;
+      if (result.employer)     window._extracted106.employer      = result.employer;
+
     } else {
-      console.warn('⚠️ No year identified for this 106 file — skipping per-year storage');
+      // No year — still update global totals only
+      if (result.grossIncome)  window._extracted106.grossIncome  += parseN(result.grossIncome);
+      if (result.taxDeducted)  window._extracted106.taxDeducted  += parseN(result.taxDeducted);
+      if (result.idNumber)     window._extracted106.idNumber      = result.idNumber;
+      if (result.workMonths)   window._extracted106.workMonths    = result.workMonths;
+      if (result.employer)     window._extracted106.employer      = result.employer;
+      console.warn('⚠️ No year identified for this 106 file — stored in global only');
+    }
+
+    // If AI returned a different year than known, warn in console
+    if (knownYear && aiYear && aiYear !== String(knownYear).trim()) {
+      console.warn(`⚠️ Year mismatch: UI says ${knownYear}, AI extracted ${aiYear}. Using UI year.`);
+      result.taxYear = knownYear;
     }
     // Show year confirmation banner if year was corrected
     if (knownYear && yr) {
