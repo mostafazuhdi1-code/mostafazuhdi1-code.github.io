@@ -1521,7 +1521,7 @@ function updateFileCount(year, count) {
         <div class="file-area">
           <input type="file" id="file-106-${year}-${i}" accept=".pdf,.jpg,.jpeg,.png"
             style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%"
-            onchange="handleFile(this,'files-106-${year}-${i}');analyze106(this,'analysis-106-${year}-${i}')">
+            onchange="handleFile(this,'files-106-${year}-${i}');analyze106(this,'analysis-106-${year}-${i}','${year}')">
           <div class="file-area-icon">📄</div>
           <div class="file-area-text">اضغط لرفع ملف 106</div>
           <div class="file-area-hint">PDF، JPG، PNG — يتم تحليله تلقائياً</div>
@@ -1689,7 +1689,8 @@ function handleFile(input, listId) {
 // ============================================================
 // ANALYZE FORM 106 — Claude API  
 // ============================================================
-async function analyze106(input, cardId) {
+async function analyze106(input, cardId, knownYear) {
+  // knownYear = السنة المعروفة من واجهة المستخدم (مثل '2022')
   const file = input.files[0];
   if (!file) return;
   const card = document.getElementById(cardId);
@@ -1728,7 +1729,8 @@ async function analyze106(input, cardId) {
     window._extracted106 = window._extracted106 || {grossIncome:0, taxDeducted:0};
     window._extracted106PerYear = window._extracted106PerYear || {};
 
-    // Accumulate totals
+    // Global totals — used only for email summary display, NOT for per-year refund calculation
+    // الحساب الفعلي يعتمد على _extracted106PerYear وليس على هذا الإجمالي
     if (result.grossIncome)  window._extracted106.grossIncome  += parseN(result.grossIncome);
     if (result.taxDeducted)  window._extracted106.taxDeducted  += parseN(result.taxDeducted);
     if (result.idNumber)     window._extracted106.idNumber      = result.idNumber;
@@ -1737,24 +1739,40 @@ async function analyze106(input, cardId) {
     if (result.employer)     window._extracted106.employer      = result.employer;
 
     // Store PER YEAR for individual year calculation
-    const yr = result.taxYear ? String(result.taxYear).trim() : null;
+    // Priority: knownYear (from UI) > AI extracted taxYear > null
+    // This prevents wrong year assignment when AI misreads the year
+    const aiYear = result.taxYear ? String(result.taxYear).trim() : null;
+    const yr = knownYear ? String(knownYear).trim() : aiYear;
+
+    // If AI returned a different year than known, warn in console but use knownYear
+    if (knownYear && aiYear && aiYear !== String(knownYear).trim()) {
+      console.warn(`⚠️ Year mismatch: UI says ${knownYear}, AI extracted ${aiYear}. Using UI year.`);
+      result.taxYear = knownYear; // show correct year in card
+    }
+
     if (yr) {
       if (!window._extracted106PerYear[yr]) {
         window._extracted106PerYear[yr] = {grossIncome:0, taxDeducted:0, employer:'', workMonths:12, creditPoints:0, employeePension:0};
       }
+      // Accumulate within same year (multiple employers in same year = sum)
       if (result.grossIncome)     window._extracted106PerYear[yr].grossIncome     += parseN(result.grossIncome);
       if (result.taxDeducted)     window._extracted106PerYear[yr].taxDeducted     += parseN(result.taxDeducted);
       if (result.employer)        window._extracted106PerYear[yr].employer         = result.employer || '';
-      if (result.workMonths)      window._extracted106PerYear[yr].workMonths       = parseInt(result.workMonths) || 12;
+      if (result.workMonths)      window._extracted106PerYear[yr].workMonths       = Math.max(window._extracted106PerYear[yr].workMonths||0, parseInt(result.workMonths)||12);
       if (result.creditPoints)    window._extracted106PerYear[yr].creditPoints     = parseN(result.creditPoints);
       if (result.employeePension) window._extracted106PerYear[yr].employeePension += parseN(result.employeePension);
+    } else {
+      console.warn('⚠️ No year identified for this 106 file — skipping per-year storage');
+    }
+    // Show year confirmation banner if year was corrected
+    if (knownYear && yr) {
+      result._confirmedYear = yr;
     }
     renderAnalysisCard(card, result);
     // Trigger unemployment question if < 12 months
     if (result.workMonths) checkUnemploymentFromFile(result.workMonths);
   } catch(err) {
     console.error('106 error:', err);
-    // Try to get more details
     card.innerHTML = '<div class="analysis-error">⚠️ خطأ: ' + (err.message || err) + '</div>';
   }
 }
@@ -1778,7 +1796,7 @@ function renderAnalysisCard(card, r) {
     refundHint = '<div class="analysis-row"><span class="analysis-row-label">⚡ احتمالية الاسترجاع</span><span class="analysis-row-value" style="color:'+color+'">'+level+' ('+rate+'% ضريبة فعلية)</span></div>';
   }
   card.innerHTML =
-    '<div class="analysis-title">✅ تم تحليل ملف 106 بنجاح</div>' +
+    '<div class="analysis-title">✅ تم تحليل ملف 106 بنجاح' + (r._confirmedYear ? ' — سنة ' + r._confirmedYear : '') + '</div>' +
     (r.employer    ? '<div class="analysis-row"><span class="analysis-row-label">🏢 المشغّل</span><span class="analysis-row-value">'+r.employer+'</span></div>' : '') +
     (r.taxYear     ? '<div class="analysis-row"><span class="analysis-row-label">📅 سنة المس</span><span class="analysis-row-value">'+r.taxYear+'</span></div>' : '') +
     (r.workMonths  ? '<div class="analysis-row"><span class="analysis-row-label">📆 أشهر العمل</span><span class="analysis-row-value">'+r.workMonths+' أشهر</span></div>' : '') +
